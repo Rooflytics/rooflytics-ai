@@ -1,0 +1,240 @@
+
+ROOFLYTICS – COMPLETE PROJECT STRUCTURE GUIDE
+============================================
+
+Purpose:
+This document describes EVERY folder and file in the repository and explains:
+- what it contains
+- why it exists
+- what logic should be implemented inside
+
+You can paste this entire file into an LLM and say:
+"Generate code following this exact structure and responsibilities."
+
+=====================================================================
+ROOT DIRECTORY
+=====================================================================
+
+rooflytics/
+│
+├── backend/                → FastAPI server + ALL ML logic
+├── training/               → training scripts only
+├── frontend-streamlit/     → UI only (NO ML)
+├── shared/                 → shared constants/types
+├── data/                   → local data cache
+├── experiments/            → logs + checkpoints
+├── notebooks/              → research notebooks
+├── docs/                   → documentation/blackbook
+│
+├── requirements-backend.txt
+├── requirements-frontend.txt
+├── README.md
+└── .env
+
+
+=====================================================================
+BACKEND (CORE LOGIC)
+=====================================================================
+
+backend/
+│
+├── app/
+│   ├── main.py
+│   │   Entry point for FastAPI server
+│   │   Starts app and includes routers
+│   │
+│   ├── config.py
+│   │   Global configs:
+│   │   - paths
+│   │   - tile size
+│   │   - model defaults
+│   │
+│   ├── schemas.py
+│   │   Pydantic request/response models
+│   │
+│   ├── routes/
+│   │   ├── health.py
+│   │   │   /health endpoint
+│   │   │
+│   │   ├── upload.py
+│   │   │   Upload GeoTIFF endpoint
+│   │   │
+│   │   ├── process.py
+│   │   │   Trigger pipeline
+│   │   │
+│   │   ├── status.py
+│   │   │   Job progress endpoint
+│   │   │
+│   │   └── results.py
+│   │       Download GeoJSON/CSV
+│   │
+│   └── services/
+│       ├── pipeline.py
+│       │   full_pipeline()
+│       │   calls all steps sequentially
+│       │
+│       ├── tiling.py
+│       │   split large images into 512x512 tiles
+│       │
+│       ├── preprocessing.py
+│       │   normalization (ImageNet or per-image)
+│       │
+│       ├── segmentation.py
+│       │   model inference logic
+│       │
+│       ├── reflectance.py
+│       │   luminance formula:
+│       │   0.2126R + 0.7152G + 0.0722B
+│       │
+│       ├── clustering.py
+│       │   StandardScaler + KMeans
+│       │
+│       ├── energy_model.py
+│       │   physics equations:
+│       │   E = A × Δα × G × η × T
+│       │
+│       ├── postprocess.py
+│       │   morphology cleanup
+│       │
+│       └── export.py
+│           raster → polygons → GeoJSON/Shapefile
+│
+├── models/
+│   ├── unet_scratch.py
+│   │   vanilla U-Net for debugging
+│   │
+│   ├── efficientnet_unet.py
+│   │   smp.Unet(encoder="efficientnet-b0")
+│   │
+│   └── model_factory.py
+│       chooses backbone via:
+│       --backbone scratch|efficientnet
+│
+└── utils/
+    ├── metrics.py
+    │   Dice, IoU
+    │
+    ├── io.py
+    │   file helpers
+    │
+    └── logging.py
+        logging config
+
+
+=====================================================================
+TRAINING
+=====================================================================
+
+training/
+│
+├── train.py
+│   main training script
+│   supports --backbone flag
+│
+├── validate.py
+│   evaluation script
+│
+├── infer.py
+│   offline inference
+│
+├── datasets.py
+│   tile loader + normalization
+│
+├── augmentations.py
+│   Albumentations transforms
+│
+├── losses.py
+│   BCE + Dice loss
+│
+├── engine.py
+│   training loop
+│
+└── configs/
+    ├── scratch.yaml
+    └── efficientnet.yaml
+
+
+=====================================================================
+FRONTEND (STRICTLY UI)
+=====================================================================
+
+frontend-streamlit/
+│
+├── app.py
+│   Streamlit dashboard
+│
+├── api_client.py
+│   HTTP calls to backend
+│
+└── components/
+    ├── uploader.py
+    ├── maps.py
+    ├── charts.py
+    └── results.py
+
+Rule:
+NO torch or ML here.
+
+
+=====================================================================
+DATA
+=====================================================================
+
+├── data/
+│   ├── train/
+│   │   ├── image/
+│   │   └── label/
+│   │       ├── *.tif
+│   ├── validate/
+│   │   ├── image/
+│   │   └── label/
+│   └── test/
+│       ├── image/
+│       └── label/
+
+Used for caching only.
+
+
+=====================================================================
+EXPERIMENTS
+=====================================================================
+
+experiments/
+├── logs/
+├── checkpoints/
+├── metrics.csv
+├── plots/
+└── ablations/
+
+Stores all results.
+
+
+=====================================================================
+NOTEBOOKS
+=====================================================================
+
+notebooks/
+EDA + Colab experiments only
+
+
+=====================================================================
+DOCS
+=====================================================================
+
+docs/
+All study guides, PRD, blackbook files
+
+
+=====================================================================
+SUMMARY RULES
+=====================================================================
+
+1. Backend = ALL ML logic
+2. Frontend = UI only
+3. Training separate from API
+4. EfficientNet for production
+5. Scratch for debugging
+6. Always normalize properly
+7. StandardScaler before clustering
+8. Use luminance reflectance
+9. Use energy time term

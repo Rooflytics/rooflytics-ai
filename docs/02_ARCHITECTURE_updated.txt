@@ -1,0 +1,165 @@
+
+SYSTEM ARCHITECTURE & IMPLEMENTATION PLAN (UPDATED)
+=================================================
+
+GOAL
+Clean, scalable, API-first system where ALL machine learning and processing logic
+lives in the backend. The frontend is strictly visualization and API calls only.
+
+--------------------------------------------------
+HIGH LEVEL FLOW
+--------------------------------------------------
+
+Streamlit (UI only)
+        ↓
+FastAPI Backend
+        ↓
+ML + Geospatial Pipeline
+        ↓
+Outputs (GeoJSON/CSV/Maps)
+
+IMPORTANT RULE
+Frontend must contain ZERO ML logic.
+
+--------------------------------------------------
+COMPONENTS
+--------------------------------------------------
+
+FRONTEND (Streamlit)
+- File upload
+- Trigger processing
+- Show progress
+- Display maps
+- Download results
+- API calls only
+
+BACKEND (FastAPI)
+- Handles ALL ML + processing
+- Segmentation
+- Reflectance computation
+- Clustering
+- Energy modeling
+- GIS export
+
+SERVICES (backend/services)
+- data_loader.py
+- preprocessing.py
+- segmentation.py
+- reflectance.py
+- clustering.py
+- energy_model.py
+- export.py
+- pipeline.py
+
+--------------------------------------------------
+PIPELINE EXECUTION ORDER
+--------------------------------------------------
+
+run_pipeline(image_path):
+
+    image = load_geotiff(image_path)
+
+    tiles = tile_image(image, size=512)
+
+    # Proper normalization (NOT just /255)
+    tiles = normalize_tiles(tiles, method="imagenet_or_per_image")
+
+    mask = segment_roofs(tiles, backbone_flag)
+
+    mask = postprocess(mask)
+
+    reflectance = compute_luminance_reflectance(image, mask)
+
+    features = build_features(area, reflectance)
+
+    # CRITICAL: scale before clustering
+    features = StandardScaler().fit_transform(features)
+
+    classes = kmeans(features, k=3)
+
+    energy_stats = compute_energy_with_time_term(classes)
+
+    outputs = export_results(mask, classes, energy_stats)
+
+    return outputs
+
+--------------------------------------------------
+MODEL STRATEGY
+--------------------------------------------------
+
+Two-stage workflow:
+
+1) DEBUG MODE
+   --backbone scratch
+   - Vanilla U-Net
+   - Used only for verifying data, masks, pipeline correctness
+
+2) PRODUCTION MODE
+   --backbone efficientnet
+   - EfficientNet-B0 encoder
+   - ImageNet pretrained
+   - Better Dice
+   - Faster convergence
+   - Better generalization
+
+This flag MUST be configurable from CLI or config file.
+
+--------------------------------------------------
+SEGMENTATION IMPLEMENTATION NOTES
+--------------------------------------------------
+
+Scratch model:
+    Custom U-Net encoder/decoder
+
+Production model:
+    segmentation_models_pytorch + EfficientNet
+
+Example:
+
+    smp.Unet(
+        encoder_name="efficientnet-b0",
+        encoder_weights="imagenet",
+        in_channels=3,
+        classes=1
+    )
+
+Dependency:
+    timm (required for EfficientNet)
+
+--------------------------------------------------
+DATA PROCESSING RULES (MANDATORY)
+--------------------------------------------------
+
+NORMALIZATION
+- Never only x/255
+- Use ImageNet mean/std OR per-image standardization
+
+REFLECTANCE
+- Use luminance formula:
+    Y = 0.2126R + 0.7152G + 0.0722B
+
+CLUSTERING
+- Always StandardScaler before KMeans
+
+ENERGY MODEL (UNIT CORRECT)
+    E_saved = A × Δα × G × η × T
+
+--------------------------------------------------
+DEPLOYMENT ARCHITECTURE
+--------------------------------------------------
+
+PHASE 1 (MVP)
+Streamlit + FastAPI
+
+PHASE 2 (SaaS)
+React/Next.js → FastAPI
+No backend rewrite required
+
+--------------------------------------------------
+DESIGN PRINCIPLES
+--------------------------------------------------
+- Backend-only ML
+- Deterministic outputs
+- Memory-aware (tiled inference)
+- Modular services
+- Easily swappable backbones
