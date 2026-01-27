@@ -5,3 +5,4 @@ venv/
 .venv/
 data/
 rooflytics-ai.zip
+testing/output/
