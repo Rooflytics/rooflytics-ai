@@ -60,6 +60,8 @@ def process_job(job_id: str):
         "COOLING_EFFICIENCY": 0.65,
         "ELECTRICITY_PRICE": 0.30,
         "EMISSION_FACTOR": 0.10,
+        "USAGE_FACTOR": 0.025,
+        "MAX_KWH_PER_ROOF": 5000,
     }
 
     energy = estimate_cooling_savings(roof_stats, roof_areas, constants)

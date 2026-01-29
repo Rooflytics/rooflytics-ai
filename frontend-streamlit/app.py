@@ -1,5 +1,39 @@
 import streamlit as st
 import requests
+import numpy as np
+import rasterio
+import matplotlib.pyplot as plt
+from PIL import Image
+
+Image.MAX_IMAGE_PIXELS = None
+
+def load_tif_for_display(path):
+    with rasterio.open(path) as src:
+        data = src.read()
+
+    if data.shape[0] == 3:
+        # RGB
+        img = np.transpose(data, (1, 2, 0))
+        img = np.clip(img / 255.0, 0, 1)
+        return img
+    else:
+        # single band
+        return data[0]
+
+def overlay_thermal_mask(rgb, thermal_mask):
+    overlay = rgb.copy()
+
+    # Hot roofs → red
+    overlay[thermal_mask == 1] = [1.0, 0.0, 0.0]
+
+    # Cool roofs → blue
+    overlay[thermal_mask == 2] = [0.0, 0.4, 1.0]
+
+    alpha = 0.5
+    blended = (1 - alpha) * rgb + alpha * overlay
+
+    return blended
+
 
 API_BASE = "http://127.0.0.1:8000"
 
@@ -67,3 +101,34 @@ if uploaded_file:
         for f in files:
             url = f"{API_BASE}/results/{job_id}/{f}"
             st.markdown(f"- [{f}]({url})")
+        
+        st.markdown("### 🗺️ Thermal Roof Visualization")
+
+        job_results_url = f"{API_BASE}/results/{job_id}"
+
+        # Load images
+        input_tif = requests.get(
+            f"{job_results_url}/input.tif"
+        ).content
+
+        thermal_tif = requests.get(
+            f"{job_results_url}/thermal_clusters.tif"
+        ).content
+
+        # Save temporarily
+        with open("temp_input.tif", "wb") as f:
+            f.write(input_tif)
+
+        with open("temp_thermal.tif", "wb") as f:
+            f.write(thermal_tif)
+
+        rgb = load_tif_for_display("temp_input.tif")
+        thermal = load_tif_for_display("temp_thermal.tif")
+
+        overlay = overlay_thermal_mask(rgb, thermal)
+
+        st.image(
+            overlay,
+            caption="Red = Hot roofs | Blue = Cool roofs",
+            width="stretch",
+        )

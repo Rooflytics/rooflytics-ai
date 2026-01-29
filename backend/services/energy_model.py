@@ -61,12 +61,22 @@ def estimate_cooling_savings(
         else:
             delta_reflectance = 0.1
 
+        USAGE_FACTOR = constants.get("USAGE_FACTOR", 0.025)
+        MAX_KWH_PER_ROOF = constants.get("MAX_KWH_PER_ROOF", 5000)
+
         annual_energy_kwh = (
             area
             * constants["SOLAR_IRRADIANCE"]
             * constants["SUNLIGHT_HOURS"]
             * delta_reflectance
             * constants["COOLING_EFFICIENCY"]
+            * USAGE_FACTOR
+        )
+
+        # Cap per roof (residential realism)
+        annual_energy_kwh = min(
+            annual_energy_kwh,
+            MAX_KWH_PER_ROOF,
         )
 
         cost_savings = annual_energy_kwh * constants["ELECTRICITY_PRICE"]
