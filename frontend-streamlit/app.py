@@ -58,6 +58,11 @@ if uploaded_file:
 
         with st.spinner("Running roof analysis..."):
             r = requests.post(f"{API_BASE}/process/{job_id}")
+            if r.status_code != 200:
+                st.error("Backend error during processing")
+                st.code(r.text)
+                st.stop()
+
             result = r.json()
 
         st.success("Analysis complete")

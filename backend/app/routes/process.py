@@ -17,6 +17,9 @@ from backend.services.energy_model import (
 )
 from backend.services.export import export_mask_geotiff
 
+from backend.services.db import insert_analysis_result
+
+
 router = APIRouter(prefix="/process", tags=["Process"])
 
 MODEL_PATH = "efficientnet_unet.pth"
@@ -65,6 +68,24 @@ def process_job(job_id: str):
     }
 
     energy = estimate_cooling_savings(roof_stats, roof_areas, constants)
+
+    total_energy = sum(e["energy_kwh_per_year"] for e in energy)
+    total_cost = sum(e["cost_savings_per_year"] for e in energy)
+    total_co2 = sum(e["co2_savings_kg_per_year"] for e in energy)
+
+    insert_analysis_result(
+    job_id=job_id,
+    tile_name="input.tif",
+    num_roofs=len(roof_stats),
+    hot_roofs=sum(r["type"] == "hot" for r in roof_stats),
+    cool_roofs=sum(r["type"] == "cool" for r in roof_stats),
+    energy_kwh=total_energy,
+    cost_nzd=total_cost,
+    co2_kg=total_co2,
+    usage_factor=constants["USAGE_FACTOR"],
+    max_kwh_per_roof=constants["MAX_KWH_PER_ROOF"],
+    )
+
 
     return {
         "job_id": job_id,

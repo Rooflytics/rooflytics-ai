@@ -5,6 +5,10 @@ from backend.app.routes.upload import router as upload_router
 from backend.app.routes.process import router as process_router
 from backend.app.routes.results import router as results_router
 
+from backend.services.db import init_db
+
+init_db()
+
 app = FastAPI(
     title="Rooflytics API",
     description="Urban Roof Intelligence Backend",
