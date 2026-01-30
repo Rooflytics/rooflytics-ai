@@ -1,0 +1,4 @@
+epochs: 10
+batch_size: 2
+lr: 0.001
+max_tiles: 50

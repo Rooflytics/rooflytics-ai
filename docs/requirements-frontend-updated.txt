@@ -1,0 +1,30 @@
+
+# =======================================
+# Rooflytics – Frontend Requirements (UPDATED)
+# Streamlit UI ONLY (no ML logic)
+# =======================================
+
+# -------- UI Framework --------
+streamlit>=1.33
+
+# -------- Visualization --------
+plotly>=5.20
+folium>=0.16
+streamlit-folium>=0.18
+matplotlib>=3.8   # optional simple plots
+
+# -------- Data / API --------
+pandas>=2.2
+numpy>=1.26
+requests>=2.31
+python-dotenv>=1.0
+
+# =======================================
+# IMPORTANT RULES
+# =======================================
+# - ZERO machine learning here
+# - No torch, no segmentation, no raster processing
+# - Frontend only:
+#     upload → call API → poll status → display maps → download results
+#
+# All ML runs in backend (FastAPI).

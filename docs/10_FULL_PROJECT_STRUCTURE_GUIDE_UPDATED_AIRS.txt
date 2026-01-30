@@ -1,0 +1,86 @@
+
+rooflytics/
+│
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── config.py
+│   │   ├── deps.py
+│   │   ├── schemas.py
+│   │   ├── routes/
+│   │   │   ├── health.py
+│   │   │   ├── upload.py
+│   │   │   ├── process.py
+│   │   │   ├── status.py
+│   │   │   └── results.py
+│   │   └── services/
+│   │       ├── pipeline.py
+│   │       ├── tiling.py
+│   │       ├── preprocessing.py
+│   │       ├── segmentation.py
+│   │       ├── reflectance.py
+│   │       ├── clustering.py
+│   │       ├── energy_model.py
+│   │       ├── postprocess.py
+│   │       └── export.py
+│   ├── models/
+│   │   ├── unet_scratch.py
+│   │   ├── efficientnet_unet.py
+│   │   └── model_factory.py
+│   └── utils/
+│       ├── metrics.py
+│       ├── io.py
+│       └── logging.py
+│
+├── training/
+│   ├── train.py
+│   ├── validate.py
+│   ├── infer.py
+│   ├── datasets.py
+│   ├── augmentations.py
+│   ├── losses.py
+│   ├── engine.py
+│   └── configs/
+│       ├── scratch.yaml
+│       └── efficientnet.yaml
+│
+├── frontend-streamlit/
+│   ├── app.py
+│   ├── api_client.py
+│   └── components/
+│       ├── uploader.py
+│       ├── maps.py
+│       ├── charts.py
+│       └── results.py
+│
+├── shared/
+│   ├── constants.py
+│   ├── enums.py
+│   └── types.py
+│
+├── data/
+│   ├── train/
+│   │   ├── image/
+│   │   └── label/
+│   │       ├── *.tif
+│   ├── validate/
+│   │   ├── image/
+│   │   └── label/
+│   └── test/
+│       ├── image/
+│       └── label/
+│
+├── experiments/
+│   ├── logs/
+│   ├── checkpoints/
+│   ├── metrics.csv
+│   ├── plots/
+│   └── ablations/
+│
+├── notebooks/
+├── docs/
+├── requirements-backend.txt
+├── requirements-frontend.txt
+├── README.md
+├── .env
+└── .gitignore

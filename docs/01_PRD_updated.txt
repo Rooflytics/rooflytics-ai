@@ -1,0 +1,127 @@
+
+ROOFLYTICS – PRODUCT REQUIREMENTS DOCUMENT (UPDATED)
+==================================================
+
+PRODUCT
+Rooflytics – Urban Roof Intelligence Platform
+
+OVERVIEW
+Rooflytics analyzes aerial RGB GeoTIFF imagery to:
+- Segment rooftops
+- Estimate reflectance (albedo proxy)
+- Classify cooling potential
+- Estimate energy savings (kWh/year)
+- Estimate cost savings
+- Estimate carbon offset
+- Export GIS-ready layers
+
+Designed for consumer GPUs (4–6 GB VRAM).
+
+--------------------------------------------------
+SUCCESS METRICS
+--------------------------------------------------
+- Dice ≥ 0.88
+- Runs within ≤ 6 GB VRAM
+- 10k × 10k inference ≤ 5 minutes
+- GeoJSON + CSV exports
+- Deployable on free tier
+
+--------------------------------------------------
+INPUT
+--------------------------------------------------
+- RGB GeoTIFF aerial imagery
+
+--------------------------------------------------
+CORE PROCESSING PIPELINE
+--------------------------------------------------
+1. Tiling (512×512 or configurable)
+2. Proper normalization (NOT just x/255)
+3. U-Net segmentation
+4. Shadow filtering
+5. Reflectance estimation (luminance formula)
+6. Thermal clustering
+7. Energy/cost/carbon modeling
+8. GIS export
+
+--------------------------------------------------
+CRITICAL IMPLEMENTATION RULES (MANDATORY)
+--------------------------------------------------
+
+NORMALIZATION
+- Do NOT use only x/255 scaling
+- Use ONE of:
+    • ImageNet mean/std normalization (required for pretrained backbones)
+    • Per-image standardization
+- Reason: stabilizes training + improves generalization
+
+REFLECTANCE (PHYSICALLY CORRECT)
+- Do NOT use mean(R,G,B)
+- Use luminance:
+    Y = 0.2126R + 0.7152G + 0.0722B
+- Reason: better brightness/energy proxy
+
+CLUSTERING
+- Always apply StandardScaler before KMeans
+- Reason: prevents roof area dominating reflectance
+
+ENERGY MODEL (UNIT-CORRECT)
+Old (wrong):
+    E_saved = A × Δα × G × η
+
+Correct:
+    E_saved = A × Δα × G × η × T
+
+Where:
+- A  = roof area (m²)
+- Δα = albedo change
+- G  = irradiance (kW/m²)
+- η  = cooling efficiency
+- T  = sunlight hours/year (≈ 1800–2200 India)
+
+Output → kWh/year
+
+COST MODEL
+    Cost_saved = E_saved × electricity_price
+
+CARBON MODEL
+    C_offset = E_saved × emission_factor
+
+--------------------------------------------------
+MODEL STRATEGY (VERY IMPORTANT)
+--------------------------------------------------
+
+Development workflow:
+
+1. Vanilla U-Net (scratch)
+   - debugging only
+   - sanity check masks
+   - verify pipeline
+
+2. EfficientNet backbone (production)
+   - higher Dice
+   - faster convergence
+   - better generalization
+   - recommended for final results
+
+Implementation must support:
+
+    --backbone scratch|efficientnet
+
+--------------------------------------------------
+OUTPUTS
+--------------------------------------------------
+- Roof mask
+- Cooling heatmap
+- Energy map
+- Cost map
+- GeoJSON
+- CSV report
+
+--------------------------------------------------
+NON-FUNCTIONAL REQUIREMENTS
+--------------------------------------------------
+- GPU memory ≤ 6GB
+- Deterministic outputs
+- Offline capable
+- Modular backend services
+- Frontend contains ZERO ML logic

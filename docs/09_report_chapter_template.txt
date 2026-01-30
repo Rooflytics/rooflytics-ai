@@ -1,0 +1,44 @@
+
+FINAL YEAR REPORT CHAPTER TEMPLATE
+=================================
+
+CHAPTER 1 – INTRODUCTION
+- Urban heat island problem
+- Motivation
+- Objectives
+
+CHAPTER 2 – LITERATURE REVIEW
+- Roof detection methods
+- Segmentation networks
+- Energy modeling studies
+
+CHAPTER 3 – METHODOLOGY
+- Dataset
+- Preprocessing
+- U-Net
+- EfficientNet
+- Reflectance
+- Clustering
+- Energy equations
+- Backend architecture
+
+CHAPTER 4 – RESULTS
+- Quantitative metrics
+- Qualitative masks
+- Tables
+- Ablation
+
+CHAPTER 5 – DISCUSSION
+- Why EfficientNet better
+- Failure cases
+- Limitations
+
+CHAPTER 6 – CONCLUSION
+- Contributions
+- Impact
+- Future work
+
+APPENDIX
+- Hyperparameters
+- Hardware
+- Code structure

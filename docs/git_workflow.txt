@@ -1,0 +1,104 @@
+PING-PONG / STACKED FEATURE BRANCH WORKFLOW
+==========================================
+
+Goal:
+-----
+- Use another person’s branch as a base
+- Add functionality
+- Push ONLY to your own branch
+- Repeat this back and forth safely
+
+
+EXAMPLE BRANCHES
+----------------
+k = your branch
+t = teammate’s branch
+
+
+PHASE 1: You create the base branch (k)
+---------------------------------------
+git checkout -b k
+# work on functionality A
+git add .
+git commit -m "Add base functionality"
+git push -u origin k
+
+
+PHASE 2: Teammate builds on your branch but pushes to their own branch (t)
+--------------------------------------------------------------------------
+
+1. Fetch latest branches
+git fetch origin
+
+2. Create their branch from your branch
+git checkout -b t origin/k
+
+3. Add functionality
+git add .
+git commit -m "Add functionality B"
+
+4. Push to their own branch
+git push -u origin t
+
+
+PHASE 3: You build on teammate’s work but push back to your branch (k)
+----------------------------------------------------------------------
+
+IMPORTANT:
+You must be on YOUR branch before pulling their work.
+
+1. Fetch latest remote changes
+git fetch origin
+
+2. Switch to your branch
+git checkout k
+
+3. Pull teammate’s branch INTO your branch
+(Option A: Merge – safest for shared branches)
+git merge origin/t
+
+(Option B: Rebase – cleaner history, use carefully)
+git rebase origin/t
+
+4. Add more functionality
+git add .
+git commit -m "Add functionality C"
+
+5. Push ONLY to your branch
+git push origin k
+
+
+MENTAL MODEL (VERY IMPORTANT)
+-----------------------------
+- You PULL from other branches
+- You PUSH from the branch you are currently on
+
+Git does NOT care where code came from,
+only where it is being pushed.
+
+
+VISUAL HISTORY
+--------------
+k:  A ---------\
+                \__ merge -> C
+t:      B -----/
+
+
+BEST PRACTICES
+--------------
+- Communicate before rebasing shared branches
+- Prefer merge for team collaboration
+- Rebase only your own unpublished commits
+- Keep PRs stacked if needed:
+  t -> k
+  k -> main
+
+
+TL;DR COMMAND FLOW
+------------------
+git fetch origin
+git checkout k
+git merge origin/t   # or rebase
+# work
+git commit
+git push origin k

@@ -1,0 +1,32 @@
+# --- Core ---
+numpy
+pandas
+scipy
+
+# --- ML ---
+torch
+torchvision
+segmentation-models-pytorch
+timm
+albumentations
+scikit-learn
+opencv-python-headless
+
+# --- Geospatial ---
+rasterio
+geopandas
+shapely
+fiona
+pyproj
+
+# --- API ---
+fastapi
+uvicorn
+pydantic
+python-multipart
+aiofiles
+httpx
+
+# --- Utils ---
+python-dotenv
+loguru

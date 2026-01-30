@@ -1,0 +1,132 @@
+
+TRAINING THEORY NOTES – DEEP LEARNING FOUNDATIONS FOR ROOFLYTICS
+===============================================================
+
+This document focuses on mathematical derivations and theoretical foundations.
+
+----------------------------------------------------------------
+1. Binary Segmentation Formulation
+----------------------------------------------------------------
+
+Given input image X ∈ R^{H×W×3}
+Ground truth mask Y ∈ {0,1}^{H×W}
+
+Model:
+fθ(X) → Ŷ ∈ [0,1]^{H×W}
+
+Each pixel = Bernoulli probability.
+
+----------------------------------------------------------------
+2. Binary Cross Entropy Loss
+----------------------------------------------------------------
+
+BCE = - Σ [ y log(p) + (1-y) log(1-p) ]
+
+Derivative:
+∂L/∂p = (p-y)/(p(1-p))
+
+Used for probabilistic classification.
+
+----------------------------------------------------------------
+3. Dice Coefficient
+----------------------------------------------------------------
+
+Dice = 2TP / (2TP + FP + FN)
+
+Soft Dice loss:
+L_dice = 1 - (2 Σ p y + ε)/(Σ p + Σ y + ε)
+
+Handles class imbalance.
+
+----------------------------------------------------------------
+4. Combined Loss
+----------------------------------------------------------------
+
+L = BCE + Dice
+
+Reason:
+BCE → pixel accuracy
+Dice → overlap quality
+
+----------------------------------------------------------------
+5. Backpropagation
+----------------------------------------------------------------
+
+Chain rule:
+
+∂L/∂θ = ∂L/∂ŷ · ∂ŷ/∂θ
+
+Gradients computed layer-wise.
+
+----------------------------------------------------------------
+6. Convolution
+----------------------------------------------------------------
+
+Output(i,j) = Σ Σ kernel(u,v) × input(i+u, j+v)
+
+Learns spatial features.
+
+----------------------------------------------------------------
+7. Encoder-Decoder theory
+----------------------------------------------------------------
+
+Encoder: feature compression
+Decoder: upsampling
+
+Skip connections:
+F_out = concat(F_encoder, F_decoder)
+
+Preserves spatial info.
+
+----------------------------------------------------------------
+8. Transfer Learning
+----------------------------------------------------------------
+
+θ = θ_pretrained + Δθ
+
+Benefits:
+- better initialization
+- faster convergence
+- avoids vanishing gradients
+
+----------------------------------------------------------------
+9. Mixed Precision
+----------------------------------------------------------------
+
+float32 → float16
+
+Memory halves:
+M_new = M_old / 2
+
+Speed increases.
+
+----------------------------------------------------------------
+10. Evaluation Metrics
+----------------------------------------------------------------
+
+IoU = |A∩B|/|A∪B|
+Dice = 2IoU/(1+IoU)
+
+----------------------------------------------------------------
+11. Clustering math
+----------------------------------------------------------------
+
+KMeans minimizes:
+
+J = Σ ||x_i - μ_k||²
+
+StandardScaler:
+x' = (x-μ)/σ
+
+Prevents feature dominance.
+
+----------------------------------------------------------------
+12. Energy Model Units
+----------------------------------------------------------------
+
+E = A × Δα × G × η × T
+
+Units:
+m² × kW/m² × hr = kWh
+
+Ensures dimensional correctness.
