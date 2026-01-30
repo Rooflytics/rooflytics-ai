@@ -1,0 +1,175 @@
+
+TECH STACK & PROJECT STRUCTURE (UPDATED)
+======================================
+
+This document defines all required libraries, architectural boundaries,
+and recommended repository layout for Rooflytics.
+
+==================================================
+CORE PRINCIPLES
+==================================================
+
+1. ALL ML runs in backend only
+2. Streamlit contains zero ML logic
+3. Tiled inference for low VRAM
+4. Deterministic outputs
+5. Two-model strategy:
+   - Vanilla U-Net → debugging
+   - EfficientNet → production
+6. Backbone selectable via:
+       --backbone scratch|efficientnet
+
+==================================================
+BACKEND – MACHINE LEARNING
+==================================================
+
+PyTorch stack
+- torch
+- torchvision
+
+Segmentation
+- segmentation_models_pytorch
+- timm  (REQUIRED for EfficientNet encoders)
+
+Augmentation
+- albumentations
+
+ML utilities
+- scikit-learn (StandardScaler + KMeans)
+- numpy
+- pandas
+- scipy
+- opencv-python-headless
+
+==================================================
+GEOSPATIAL
+==================================================
+
+- rasterio
+- geopandas
+- shapely
+- fiona
+- pyproj
+
+Used for:
+- GeoTIFF reading
+- CRS preservation
+- Raster → polygon conversion
+- GeoJSON/Shapefile export
+
+==================================================
+BACKEND – API
+==================================================
+
+- FastAPI
+- Uvicorn
+- Pydantic
+- python-multipart
+- aiofiles
+- httpx
+
+Jobs
+- FastAPI BackgroundTasks (preferred for MVP)
+- Celery optional later only if needed
+
+==================================================
+FRONTEND (PHASE 1)
+==================================================
+
+Streamlit UI only:
+- streamlit
+- plotly
+- folium
+- streamlit-folium
+- requests
+
+NO ML here.
+
+==================================================
+IMPORTANT PROCESSING RULES (MANDATORY)
+==================================================
+
+NORMALIZATION
+- Do NOT use only x/255
+- Use ImageNet mean/std OR per-image standardization
+
+REFLECTANCE
+- Use luminance formula:
+    Y = 0.2126R + 0.7152G + 0.0722B
+
+CLUSTERING
+- Always StandardScaler before KMeans
+
+ENERGY MODEL
+    E_saved = A × Δα × G × η × T
+
+==================================================
+RECOMMENDED PROJECT STRUCTURE
+==================================================
+
+rooflytics/
+│
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── routes/
+│   │   ├── schemas/
+│   │   └── config.py
+│   │
+│   ├── services/
+│   │   ├── data_loader.py
+│   │   ├── preprocessing.py
+│   │   ├── segmentation.py
+│   │   ├── reflectance.py
+│   │   ├── clustering.py
+│   │   ├── energy_model.py
+│   │   ├── export.py
+│   │   └── pipeline.py
+│   │
+│   ├── models/
+│   │   ├── unet_scratch.py
+│   │   └── efficientnet_unet.py
+│   │
+│   └── utils/
+│
+├── frontend-streamlit/
+│   ├── app.py
+│   └── api_client.py
+│
+├── shared/
+│   └── constants.py
+│
+└── requirements-*.txt
+
+==================================================
+MODEL SELECTION PATTERN (REQUIRED)
+==================================================
+
+CLI example:
+
+    python train.py --backbone scratch
+    python train.py --backbone efficientnet
+
+Logic:
+
+if backbone == "scratch":
+    use vanilla U-Net
+else:
+    use EfficientNet-B0 pretrained
+
+==================================================
+WHY THIS STACK
+==================================================
+
+EfficientNet:
+- Better Dice
+- Faster convergence
+- Lower memory usage
+- Stronger generalization
+
+Vanilla U-Net:
+- Easier debugging
+- Full control
+- Good sanity checks
+
+Together → robust development workflow

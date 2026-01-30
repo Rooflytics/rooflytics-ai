@@ -1,0 +1,60 @@
+
+# =======================================
+# Rooflytics – Backend Requirements (UPDATED)
+# FastAPI + ML + Geospatial
+# =======================================
+
+# -------- Core Deep Learning --------
+torch>=2.2
+torchvision>=0.17
+segmentation-models-pytorch>=0.3.3
+
+# REQUIRED for EfficientNet backbones
+timm>=0.9
+
+albumentations>=1.4
+
+# -------- ML / Data --------
+scikit-learn>=1.4   # StandardScaler + KMeans
+numpy>=1.26
+pandas>=2.2
+scipy>=1.12
+opencv-python-headless>=4.9
+
+# -------- Geospatial --------
+rasterio>=1.3
+geopandas>=0.14
+shapely>=2.0
+fiona>=1.9
+pyproj>=3.6
+
+# -------- API / Server --------
+fastapi>=0.110
+uvicorn[standard]>=0.27
+python-multipart>=0.0.9
+pydantic>=2.6
+aiofiles>=23.2
+httpx>=0.27
+
+# -------- Utilities --------
+tqdm>=4.66
+loguru>=0.7
+python-dotenv>=1.0
+pyyaml>=6.0
+
+# -------- Dev --------
+pytest>=8.0
+black>=24.0
+isort>=5.13
+
+# =======================================
+# NOTES
+# =======================================
+# - Celery/Redis intentionally NOT included for MVP
+#   Use FastAPI BackgroundTasks first
+#
+# - EfficientNet requires timm
+#
+# - Clustering requires scikit-learn (StandardScaler mandatory)
+#
+# - Backend handles ALL ML logic (frontend has none)

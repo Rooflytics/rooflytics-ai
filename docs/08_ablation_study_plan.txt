@@ -1,0 +1,32 @@
+
+ABLATION STUDY PLAN
+===================
+
+Purpose:
+Quantify impact of each component.
+
+------------------------------------------------
+Experiments
+------------------------------------------------
+
+Baseline:
+Scratch U-Net + /255 only
+
+Add normalization
+Add EfficientNet
+Add luminance reflectance
+Add StandardScaler
+Add mixed precision
+
+------------------------------------------------
+Example Table
+------------------------------------------------
+
+Component Added | Dice | ΔDice
+--------------------------------
+
+Interpretation:
+Shows which improvement contributes most.
+
+Expected:
+EfficientNet and normalization give largest gains.

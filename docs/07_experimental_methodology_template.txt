@@ -1,0 +1,62 @@
+
+EXPERIMENTAL METHODOLOGY TEMPLATE
+=================================
+
+Objective:
+Evaluate segmentation accuracy and energy estimation reliability.
+
+------------------------------------------------
+Dataset Split
+------------------------------------------------
+Train: 70%
+Val: 15%
+Test: 15%
+
+------------------------------------------------
+Experiments
+------------------------------------------------
+1. Scratch U-Net
+2. EfficientNet-B0
+3. EfficientNet-B1
+
+------------------------------------------------
+Hyperparameters
+------------------------------------------------
+Batch size
+Learning rate
+Optimizer (Adam)
+Epochs
+Tile size
+
+------------------------------------------------
+Metrics
+------------------------------------------------
+Dice
+IoU
+Precision
+Recall
+Inference time
+GPU memory
+
+------------------------------------------------
+Procedure
+------------------------------------------------
+1. Train model
+2. Validate
+3. Save best checkpoint
+4. Test once
+5. Record results
+
+------------------------------------------------
+Reporting Table
+------------------------------------------------
+
+Model | Dice | IoU | Time | VRAM
+--------------------------------
+
+------------------------------------------------
+Reproducibility
+------------------------------------------------
+- fixed seed
+- deterministic ops
+- same hardware

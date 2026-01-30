@@ -1,0 +1,428 @@
+
+ROOFLYTICS – COMPLETE TECHNICAL STUDY GUIDE
+(FINAL YEAR BLACK BOOK / 100 MARKS VERSION)
+==============================================================
+
+This document explains EVERY technical decision in depth:
+- Why each component exists
+- Scientific reasoning
+- Mathematical foundations
+- Engineering trade-offs
+- Practical implementation details
+
+Goal:
+A CS engineering student should be able to implement the entire system
+from scratch after studying this document.
+
+======================================================================
+TABLE OF CONTENTS
+======================================================================
+
+1. Problem Definition
+2. Why Computer Vision + Segmentation
+3. Dataset (AIRS / Aerial imagery) characteristics
+4. Full System Architecture
+5. Image Processing Fundamentals
+6. Tiling Strategy (memory constraints)
+7. Normalization Theory (why not /255)
+8. U-Net Theory (from scratch)
+9. Transfer Learning & EfficientNet
+10. Loss functions & metrics
+11. Mixed precision & GPU optimization
+12. Post-processing morphology
+13. Reflectance (albedo) physics
+14. Luminance formula derivation
+15. Clustering theory (KMeans + scaling)
+16. Energy modeling physics (units & time term)
+17. Cost & carbon modeling
+18. GIS & geospatial processing
+19. Backend system design
+20. Deployment decisions
+21. Practical trade-offs
+22. Experimental evaluation plan
+23. Future extensions
+24. End-to-end pipeline summary
+
+======================================================================
+1. PROBLEM DEFINITION
+======================================================================
+
+Cities suffer from Urban Heat Island (UHI) effects due to dark roofs.
+Dark materials absorb solar radiation → increase indoor temperature →
+increase AC usage → increase electricity consumption → increase carbon emissions.
+
+Goal:
+Automatically detect roofs and estimate how much energy can be saved if
+cool/reflective roofs are used.
+
+Input:
+RGB aerial GeoTIFF image
+
+Output:
+- roof mask
+- reflectance estimate
+- hot/medium/cool class
+- energy savings (kWh/year)
+- cost savings
+- carbon offset
+- GIS layers
+
+This is a segmentation + physics modeling + GIS problem.
+
+======================================================================
+2. WHY SEMANTIC SEGMENTATION?
+======================================================================
+
+Object detection gives bounding boxes.
+Bounding boxes cannot measure:
+
+- exact area
+- per-pixel reflectance
+- polygon export
+
+Segmentation gives pixel-level masks:
+→ precise area measurement
+→ energy calculation accuracy
+→ GIS polygon generation
+
+Hence U-Net segmentation is chosen.
+
+======================================================================
+3. DATASET CHARACTERISTICS (AERIAL IMAGERY)
+======================================================================
+
+Challenges:
+- varying lighting
+- shadows
+- haze
+- seasonal changes
+- different roof colors/materials
+- very large images (10k × 10k)
+
+Implications:
+- need normalization
+- need tiling
+- need robust pretrained features
+
+======================================================================
+4. SYSTEM ARCHITECTURE
+======================================================================
+
+Streamlit (UI)
+        ↓
+FastAPI (backend)
+        ↓
+ML + Geospatial pipeline
+
+Reason:
+Separation of concerns:
+- UI should not block during ML
+- Backend handles heavy GPU tasks
+- Easier deployment and scaling
+
+======================================================================
+5. TILING STRATEGY
+======================================================================
+
+Problem:
+10k × 10k × 3 ≈ 300M pixels → too large for GPU memory.
+
+Solution:
+Split into 512×512 tiles.
+
+Benefits:
+- constant VRAM
+- parallel batches
+- scalable
+
+Trade-off:
+Edge artifacts → solved by overlapping tiles + stitching.
+
+======================================================================
+6. NORMALIZATION THEORY
+======================================================================
+
+Why not x/255 only?
+
+/255 only rescales range, does NOT remove lighting differences.
+
+Example:
+bright tile mean=200 vs dark tile mean=80
+
+Model mistakes brightness for material.
+
+Better:
+ImageNet normalization or per-image standardization.
+
+Math:
+x_norm = (x − μ) / σ
+
+Benefits:
+- zero mean
+- stable gradients
+- matches EfficientNet pretrained distribution
+
+This is CRITICAL.
+
+======================================================================
+7. U-NET THEORY (FROM SCRATCH)
+======================================================================
+
+Structure:
+Encoder → Decoder with skip connections
+
+Encoder:
+captures context
+
+Decoder:
+recovers spatial resolution
+
+Skip connections:
+prevent information loss
+
+Why good for roofs?
+Roofs are large blobs → spatial information is crucial.
+
+Vanilla U-Net:
+Used ONLY for debugging and sanity checks.
+
+======================================================================
+8. TRANSFER LEARNING & EFFICIENTNET
+======================================================================
+
+Training from scratch:
+- needs large data
+- slower
+- weaker generalization
+
+EfficientNet:
+Pretrained on ImageNet
+Already knows edges/textures
+
+Benefits:
+- faster convergence
+- higher Dice
+- lower data requirement
+- lower VRAM (B0 is lightweight)
+
+Hence:
+scratch → debugging
+efficientnet → production
+
+CLI flag:
+--backbone scratch|efficientnet
+
+======================================================================
+9. LOSS FUNCTIONS
+======================================================================
+
+Binary Cross Entropy:
+pixel classification
+
+Dice Loss:
+overlap metric
+
+Combined:
+Loss = BCE + Dice
+
+Reason:
+BCE handles probabilities
+Dice handles class imbalance
+
+======================================================================
+10. METRICS
+======================================================================
+
+Dice = 2|A∩B|/(|A|+|B|)
+IoU  = |A∩B|/|A∪B|
+
+Dice preferred for segmentation quality.
+
+Target ≥ 0.88
+
+======================================================================
+11. MIXED PRECISION
+======================================================================
+
+float16 halves memory
+
+Benefits:
+- faster training
+- lower VRAM
+
+Implemented via torch.cuda.amp
+
+======================================================================
+12. POST-PROCESSING
+======================================================================
+
+Morphological closing:
+fills small holes
+
+Small object removal:
+removes noise
+
+Reason:
+Cleaner polygons → better GIS export
+
+======================================================================
+13. REFLECTANCE (ALBEDO) PHYSICS
+======================================================================
+
+Reflectance = fraction of light reflected.
+
+Higher reflectance → cooler roof
+
+We approximate using brightness.
+
+======================================================================
+14. LUMINANCE FORMULA
+======================================================================
+
+NOT mean(R,G,B)
+
+Correct:
+Y = 0.2126R + 0.7152G + 0.0722B
+
+Green contributes most to perceived brightness.
+
+Scientifically more accurate → better clustering.
+
+======================================================================
+15. CLUSTERING THEORY
+======================================================================
+
+We group roofs into hot/medium/cool.
+
+KMeans uses Euclidean distance.
+
+Problem:
+Area >> reflectance scale
+
+Solution:
+StandardScaler
+
+x' = (x−μ)/σ
+
+Ensures fair distance calculation.
+
+Mandatory step.
+
+======================================================================
+16. ENERGY MODEL PHYSICS
+======================================================================
+
+Energy = Power × Time
+
+Correct formula:
+
+E_saved = A × Δα × G × η × T
+
+Units:
+m² × unitless × kW/m² × unitless × hours = kWh
+
+Without time term → incorrect units.
+
+This correction is scientifically required.
+
+======================================================================
+17. GIS PROCESSING
+======================================================================
+
+Raster → polygon conversion
+
+Needed because:
+planners use GIS tools
+
+Libraries:
+rasterio, geopandas, shapely
+
+Outputs:
+GeoJSON, Shapefile
+
+======================================================================
+18. BACKEND DESIGN
+======================================================================
+
+FastAPI chosen because:
+- async
+- lightweight
+- easy deployment
+- Python-native
+
+BackgroundTasks:
+sufficient for MVP
+
+Celery avoided initially:
+reduces complexity
+
+======================================================================
+19. DEPLOYMENT CONSIDERATIONS
+======================================================================
+
+Constraints:
+- free tier hosting
+- 4–6GB GPU
+
+Hence:
+- tiled inference
+- lightweight EfficientNet
+- minimal dependencies
+
+======================================================================
+20. PRACTICAL ENGINEERING DECISIONS
+======================================================================
+
+Why scratch model first?
+→ debug data
+
+Why EfficientNet later?
+→ better accuracy
+
+Why scaling before clustering?
+→ mathematical correctness
+
+Why luminance?
+→ physics correctness
+
+Why normalization?
+→ training stability
+
+Every step has scientific or engineering reasoning.
+
+======================================================================
+21. END-TO-END PIPELINE
+======================================================================
+
+GeoTIFF
+ → tiles
+ → normalize
+ → segment
+ → postprocess
+ → reflectance
+ → scale features
+ → cluster
+ → energy modeling
+ → GIS export
+
+======================================================================
+FINAL NOTE
+======================================================================
+
+This project integrates:
+- Deep Learning
+- Image Processing
+- Physics
+- Statistics
+- Geospatial systems
+- Backend engineering
+
+It is NOT just a CNN project.
+
+It demonstrates:
+✔ theory
+✔ math
+✔ engineering
+✔ deployment
+
+A complete real-world AI system.

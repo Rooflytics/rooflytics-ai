@@ -1,0 +1,188 @@
+
+ROOFLYTICS – MASTER TODO ROADMAP (UPDATED)
+========================================
+
+This roadmap converts all design decisions into an implementation-ready
+step-by-step build plan.
+
+Follow in order. Do NOT skip Phase 1 sanity checks.
+
+==================================================
+PHASE 0 — PROJECT SETUP
+==================================================
+
+[ ] Create repo structure
+[ ] backend/
+[ ] frontend-streamlit/
+[ ] shared/
+[ ] Create virtualenv
+[ ] Add requirements files
+[ ] Add .env config
+[ ] Setup black + isort + pytest
+
+==================================================
+PHASE 1 — CORE ML PIPELINE (OFFLINE FIRST)
+==================================================
+Goal: working local script BEFORE any API
+
+--------------------------------------------------
+DATA LOADING
+--------------------------------------------------
+
+[ ] Load GeoTIFF using rasterio
+[ ] Preserve CRS + metadata
+[ ] Tile into 512×512 patches
+[ ] Batch tile generator
+
+--------------------------------------------------
+PREPROCESSING (MANDATORY FIXES)
+--------------------------------------------------
+
+[ ] Replace x/255 normalization
+[ ] Implement ImageNet mean/std normalization
+      OR per-image standardization
+[ ] Histogram normalization (optional)
+[ ] Shadow detection
+[ ] Morphological cleanup
+
+--------------------------------------------------
+SEGMENTATION (TWO-STAGE STRATEGY)
+--------------------------------------------------
+
+Stage A — DEBUG
+[ ] Implement vanilla U-Net from scratch
+[ ] Train on small subset
+[ ] Verify masks visually
+[ ] Confirm tiling + labels are correct
+
+Stage B — PRODUCTION
+[ ] Install timm
+[ ] Use segmentation_models_pytorch EfficientNet-B0
+[ ] Mixed precision inference
+[ ] Tiled stitching
+[ ] Dice/IoU metrics
+
+MANDATORY
+[ ] Add CLI flag: --backbone scratch|efficientnet
+
+--------------------------------------------------
+POST-PROCESSING
+--------------------------------------------------
+
+[ ] Morphological closing
+[ ] Small object removal
+[ ] Polygon simplification
+
+--------------------------------------------------
+REFLECTANCE (PHYSICS CORRECT)
+--------------------------------------------------
+
+[ ] Mask roof pixels
+[ ] Compute luminance:
+      Y = 0.2126R + 0.7152G + 0.0722B
+[ ] Aggregate per-building reflectance
+
+--------------------------------------------------
+THERMAL CLUSTERING
+--------------------------------------------------
+
+[ ] Build features (area, reflectance, etc)
+[ ] Apply StandardScaler (MANDATORY)
+[ ] KMeans(n_clusters=3)
+[ ] Label hot/medium/cool
+
+--------------------------------------------------
+ENERGY MODEL (UNIT CORRECT)
+--------------------------------------------------
+
+[ ] Implement:
+      E_saved = A × Δα × G × η × T
+[ ] Add cost model
+[ ] Add carbon model
+[ ] Add uncertainty bounds
+
+--------------------------------------------------
+GIS EXPORT
+--------------------------------------------------
+
+[ ] Raster → polygons
+[ ] GeoJSON export
+[ ] Shapefile export
+[ ] CSV metrics export
+
+--------------------------------------------------
+PIPELINE WRAPPER
+--------------------------------------------------
+
+[ ] full_pipeline(image_path)
+[ ] Save all intermediate outputs
+[ ] Test on 1 large image
+
+==================================================
+PHASE 2 — FASTAPI BACKEND
+==================================================
+
+[ ] Install FastAPI + Uvicorn
+[ ] Create main.py
+[ ] /health endpoint
+
+Endpoints:
+[ ] POST /upload
+[ ] POST /process/{file_id}
+[ ] GET /status/{job_id}
+[ ] GET /results/{job_id}/geojson
+[ ] GET /results/{job_id}/csv
+[ ] GET /results/{job_id}/heatmap
+
+Jobs:
+[ ] BackgroundTasks (MVP)
+[ ] Temp storage
+[ ] Progress tracking
+
+==================================================
+PHASE 3 — STREAMLIT FRONTEND
+==================================================
+
+[ ] File uploader
+[ ] Start processing button
+[ ] Poll job status
+[ ] Show mask overlay
+[ ] Show heatmap
+[ ] Download results
+
+RULE:
+NO ML LOGIC HERE
+
+==================================================
+PHASE 4 — DEPLOYMENT
+==================================================
+
+Backend:
+[ ] Dockerfile
+[ ] Deploy to Render/Fly.io
+
+Frontend:
+[ ] Deploy to Streamlit Cloud
+
+==================================================
+PHASE 5 — POLISH
+==================================================
+
+[ ] Logging
+[ ] Error handling
+[ ] Retry jobs
+[ ] Config file for constants
+[ ] Documentation
+[ ] Example dataset
+
+==================================================
+DEFINITION OF DONE
+==================================================
+
+✓ Upload large GeoTIFF
+✓ Process end-to-end
+✓ Produce GeoJSON + CSV
+✓ Interactive dashboard
+✓ Dice ≥ 0.88
+✓ Runs within 6GB GPU
+✓ EfficientNet production model enabled

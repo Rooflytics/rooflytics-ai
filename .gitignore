@@ -1,0 +1,10 @@
+__pycache__/
+.env
+.ipynb_checkpoints
+venv/
+.venv/
+data/
+rooflytics-ai.zip
+testing/output/
+results/
+reference/
