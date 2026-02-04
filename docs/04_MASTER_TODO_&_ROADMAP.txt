@@ -1,0 +1,223 @@
+ROOFLYTICS – MASTER TODO & ROADMAP (v1.0 – IMPLEMENTED)
+=====================================================
+
+This roadmap documents the full development lifecycle of Rooflytics.
+Items are marked as:
+✓ DONE (implemented in v1)
+→ FUTURE (v2+ improvements)
+
+==================================================
+PHASE 0 — PROJECT SETUP
+==================================================
+
+✓ Create repository structure
+✓ backend / frontend-streamlit / training / testing / db
+✓ Python virtual environment
+✓ Separate requirements files (backend / frontend)
+✓ Config-driven constants
+✓ Windows + Linux compatible paths
+
+==================================================
+PHASE 1 — CORE ML PIPELINE (OFFLINE FIRST)
+==================================================
+Goal: Fully working local pipeline BEFORE API integration
+
+--------------------------------------------------
+DATA LOADING
+--------------------------------------------------
+
+✓ Load GeoTIFF using rasterio
+✓ Preserve CRS and metadata
+✓ Handle very large images (10k × 10k)
+✓ Tile into 512 × 512 patches
+✓ Deterministic tiling and stitching
+
+--------------------------------------------------
+PREPROCESSING (MANDATORY FIXES)
+--------------------------------------------------
+
+✓ Replaced naive x/255 normalization
+✓ Implemented per-image standardization
+✓ ImageNet mean/std support (pretrained backbones)
+✓ Shadow detection and masking
+✓ Robust preprocessing verified via sanity tests
+
+--------------------------------------------------
+SEGMENTATION (TWO-STAGE STRATEGY)
+--------------------------------------------------
+
+Stage A — DEBUG
+✓ Scratch U-Net implemented
+✓ Trained on small subset (5 images)
+✓ Verified tiling, labels, and masks
+✓ Used only for pipeline validation
+
+Stage B — PRODUCTION
+✓ EfficientNet-B0 U-Net implemented
+✓ segmentation_models_pytorch + timm
+✓ Device auto-detection (CPU/GPU)
+✓ Tiled inference + stitching
+✓ Lightweight inference for deployment
+
+--------------------------------------------------
+POST-PROCESSING
+--------------------------------------------------
+
+✓ Morphological cleanup
+✓ Small object removal
+✓ Connected component labeling
+→ Polygon simplification (v2)
+
+--------------------------------------------------
+REFLECTANCE (PHYSICS-AWARE)
+--------------------------------------------------
+
+✓ Roof pixel masking
+✓ Luminance-based reflectance:
+    Y = 0.2126R + 0.7152G + 0.0722B
+✓ Roof-level aggregation
+
+--------------------------------------------------
+THERMAL CLUSTERING
+--------------------------------------------------
+
+✓ Feature extraction (area, reflectance)
+✓ StandardScaler applied (mandatory)
+✓ K-Means clustering
+✓ Binary classification: hot vs cool roofs
+
+--------------------------------------------------
+ENERGY, COST & CARBON MODEL
+--------------------------------------------------
+
+✓ Planning-level cooling-energy estimation
+✓ Scene-level residential usage factor (0.1)
+✓ Per-roof energy cap (5,000 kWh/year)
+✓ Cost savings estimation (NZD)
+✓ CO₂ reduction estimation
+✓ Conservative, defensible assumptions
+
+--------------------------------------------------
+GIS EXPORT
+--------------------------------------------------
+
+✓ GeoTIFF outputs:
+  • raw mask
+  • cleaned mask
+  • thermal cluster map
+→ Vector export (GeoJSON/Shapefile) (v2)
+→ CSV per-roof metrics (v2)
+
+--------------------------------------------------
+PIPELINE WRAPPER
+--------------------------------------------------
+
+✓ End-to-end pipeline execution
+✓ All intermediate outputs saved
+✓ Tested on large real-world imagery
+
+==================================================
+PHASE 2 — FASTAPI BACKEND
+==================================================
+
+✓ FastAPI + Uvicorn setup
+✓ Clean app / routes / services separation
+✓ /health endpoint
+
+Endpoints (v1):
+✓ POST /upload
+✓ POST /process/{job_id}
+✓ GET  /results/{job_id}
+✓ GET  /results/{job_id}/{filename}
+
+→ Job status polling (v2)
+→ BackgroundTasks / async queue (v2)
+
+--------------------------------------------------
+ANALYTICS & DATABASE
+--------------------------------------------------
+
+✓ SQLite analytics persistence
+✓ MySQL-compatible schema
+✓ One row per inference job
+✓ Stores:
+  • roof counts
+  • energy savings
+  • cost savings
+  • CO₂ reduction
+  • modeling assumptions
+✓ Zero impact on inference performance
+
+==================================================
+PHASE 3 — STREAMLIT FRONTEND
+==================================================
+
+✓ File upload UI
+✓ Trigger backend processing
+✓ Display KPIs:
+  • total roofs
+  • hot roofs
+  • cool roofs
+  • energy savings
+  • cost savings
+  • CO₂ reduction
+✓ Visual geospatial overlays:
+  • hot roofs (red)
+  • cool roofs (blue)
+✓ Download GeoTIFF outputs
+
+RULE (ENFORCED):
+✓ NO ML OR GEOSPATIAL LOGIC IN FRONTEND
+
+==================================================
+PHASE 4 — DEPLOYMENT
+==================================================
+
+✓ CPU-only inference supported
+✓ Lightweight backend suitable for Fly.io / Render
+✓ Streamlit frontend deployable
+✓ File-based outputs and DB persistence
+
+→ Docker optimization (v2)
+→ External DB (MySQL/Postgres) (v2)
+
+==================================================
+PHASE 5 — POLISH & VALIDATION
+==================================================
+
+✓ Robust error handling
+✓ Path-safe file management
+✓ Defensive frontend checks
+✓ Clear assumptions and disclaimers
+✓ Documentation updated to match implementation
+✓ Presentation-ready visuals and metrics
+
+==================================================
+DEFINITION OF DONE (v1.0)
+==================================================
+
+✓ Upload large GeoTIFF
+✓ End-to-end processing
+✓ Roof detection and thermal classification
+✓ Energy, cost, and CO₂ KPIs
+✓ Visual geospatial overlays
+✓ Analytics persisted in SQL database
+✓ Frontend + backend fully integrated
+✓ Runs on limited hardware
+✓ Deployment-ready architecture
+
+==================================================
+FUTURE ROADMAP (v2+)
+==================================================
+
+→ Full dataset training with validation/test splits
+→ Roof-to-building aggregation
+→ Building-type classification
+→ Vector GIS exports
+→ Batch city-scale processing
+→ Historical dashboards
+→ Spark-based offline analytics
+
+--------------------------------------------------
+END OF DOCUMENT
+--------------------------------------------------

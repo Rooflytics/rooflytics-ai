@@ -1,127 +1,195 @@
-
-ROOFLYTICS – PRODUCT REQUIREMENTS DOCUMENT (UPDATED)
-==================================================
+ROOFLYTICS – PRODUCT REQUIREMENTS DOCUMENT (v1.0 – IMPLEMENTED)
+==============================================================
 
 PRODUCT
 Rooflytics – Urban Roof Intelligence Platform
 
+--------------------------------------------------
 OVERVIEW
-Rooflytics analyzes aerial RGB GeoTIFF imagery to:
-- Segment rooftops
-- Estimate reflectance (albedo proxy)
-- Classify cooling potential
-- Estimate energy savings (kWh/year)
-- Estimate cost savings
-- Estimate carbon offset
-- Export GIS-ready layers
+--------------------------------------------------
+Rooflytics is an end-to-end geospatial AI system that analyzes high-resolution
+RGB aerial GeoTIFF imagery to extract rooftop intelligence and estimate the
+potential impact of cool-roof retrofitting.
 
-Designed for consumer GPUs (4–6 GB VRAM).
+The system performs:
+• Roof segmentation from aerial imagery
+• Reflectance (albedo proxy) estimation
+• Thermal classification (hot vs cool roofs)
+• Cooling-energy savings estimation (kWh/year)
+• Cost savings estimation
+• CO₂ emission reduction estimation
+• GIS-ready raster exports
+• Interactive visualization via frontend UI
+
+The platform is designed to be lightweight, interpretable, and deployable on
+limited hardware and free-tier cloud environments.
 
 --------------------------------------------------
 SUCCESS METRICS
 --------------------------------------------------
-- Dice ≥ 0.88
-- Runs within ≤ 6 GB VRAM
-- 10k × 10k inference ≤ 5 minutes
-- GeoJSON + CSV exports
-- Deployable on free tier
+Model & Performance
+• Best-effort Dice score target (≥ 0.88 when fully trained)
+• Deterministic inference pipeline
+• 10k × 10k GeoTIFF inference ≤ 5 minutes (CPU/GPU dependent)
+
+System & Deployment
+• Runs within ≤ 6 GB VRAM (training/inference)
+• CPU-only deployment supported
+• Job-based API with reproducible outputs
+• Free-tier deployable backend
 
 --------------------------------------------------
 INPUT
 --------------------------------------------------
-- RGB GeoTIFF aerial imagery
+• RGB GeoTIFF aerial imagery
+• Typical input size: up to 10,000 × 10,000 pixels
+• Coordinate reference systems preserved during processing
 
 --------------------------------------------------
 CORE PROCESSING PIPELINE
 --------------------------------------------------
-1. Tiling (512×512 or configurable)
-2. Proper normalization (NOT just x/255)
-3. U-Net segmentation
-4. Shadow filtering
-5. Reflectance estimation (luminance formula)
-6. Thermal clustering
-7. Energy/cost/carbon modeling
-8. GIS export
+1. GeoTIFF loading & metadata preservation
+2. Tiling (512 × 512 patches)
+3. Robust normalization (not simple x/255 scaling)
+4. Roof segmentation using U-Net architecture
+5. Post-processing & artifact removal
+6. Reflectance estimation using luminance formulation
+7. Roof-level aggregation
+8. Thermal clustering (hot vs cool roofs)
+9. Energy, cost, and carbon modeling
+10. GIS-ready raster export
 
 --------------------------------------------------
 CRITICAL IMPLEMENTATION RULES (MANDATORY)
 --------------------------------------------------
 
 NORMALIZATION
-- Do NOT use only x/255 scaling
-- Use ONE of:
-    • ImageNet mean/std normalization (required for pretrained backbones)
-    • Per-image standardization
-- Reason: stabilizes training + improves generalization
+• Do NOT rely solely on x/255 scaling
+• Use:
+  – ImageNet mean/std normalization (for pretrained backbones)
+  – or per-image standardization
+• Purpose: training stability and generalization
 
-REFLECTANCE (PHYSICALLY CORRECT)
-- Do NOT use mean(R,G,B)
-- Use luminance:
-    Y = 0.2126R + 0.7152G + 0.0722B
-- Reason: better brightness/energy proxy
+REFLECTANCE ESTIMATION (PHYSICALLY MEANINGFUL)
+• Do NOT use mean(R, G, B)
+• Use luminance formulation:
+  Y = 0.2126R + 0.7152G + 0.0722B
+• Acts as a proxy for roof albedo / brightness
 
 CLUSTERING
-- Always apply StandardScaler before KMeans
-- Reason: prevents roof area dominating reflectance
+• Always standardize reflectance features before clustering
+• K-Means used for binary thermal classification
+• Prevents roof size from dominating clustering
 
-ENERGY MODEL (UNIT-CORRECT)
-Old (wrong):
-    E_saved = A × Δα × G × η
+--------------------------------------------------
+ENERGY, COST & CARBON MODEL
+--------------------------------------------------
 
-Correct:
-    E_saved = A × Δα × G × η × T
+ENERGY MODEL (PLANNING-LEVEL)
+Estimated cooling-energy reduction is computed as:
+
+E_saved = A × Δα × G × η × T × U
 
 Where:
-- A  = roof area (m²)
-- Δα = albedo change
-- G  = irradiance (kW/m²)
-- η  = cooling efficiency
-- T  = sunlight hours/year (≈ 1800–2200 India)
+• A  = roof area (m²)
+• Δα = assumed reflectance improvement
+• G  = solar irradiance (kW/m²)
+• η  = cooling efficiency
+• T  = annual sunlight hours
+• U  = usage factor (scene-level)
 
-Output → kWh/year
+Key constraints:
+• Scene-level residential usage factor (default: 0.1)
+• Maximum savings capped at 5,000 kWh per roof per year
+• Prevents unrealistic household overestimation
+
+OUTPUT UNIT:
+• Energy savings → kWh/year
 
 COST MODEL
-    Cost_saved = E_saved × electricity_price
+• Cost_saved = E_saved × electricity_price
 
 CARBON MODEL
-    C_offset = E_saved × emission_factor
+• CO₂_offset = E_saved × emission_factor
+
+All estimates represent potential upper-bound planning-level values,
+not measured household consumption.
 
 --------------------------------------------------
-MODEL STRATEGY (VERY IMPORTANT)
+MODEL STRATEGY
 --------------------------------------------------
 
-Development workflow:
+Development Phases:
 
-1. Vanilla U-Net (scratch)
-   - debugging only
-   - sanity check masks
-   - verify pipeline
+1. Scratch U-Net
+   • Used for pipeline validation and debugging
+   • Ensures correctness of masks and preprocessing
 
-2. EfficientNet backbone (production)
-   - higher Dice
-   - faster convergence
-   - better generalization
-   - recommended for final results
+2. EfficientNet-Backbone U-Net (Production)
+   • Faster convergence
+   • Better generalization
+   • Lower VRAM usage
+   • Used in deployed system
 
-Implementation must support:
-
-    --backbone scratch|efficientnet
+Architecture supports backbone swapping without pipeline changes.
 
 --------------------------------------------------
 OUTPUTS
 --------------------------------------------------
-- Roof mask
-- Cooling heatmap
-- Energy map
-- Cost map
-- GeoJSON
-- CSV report
+
+Raster Outputs (GeoTIFF):
+• Raw roof prediction mask
+• Cleaned roof mask
+• Thermal cluster map (hot vs cool roofs)
+
+Analytics Outputs:
+• Total roofs detected
+• Hot roof count
+• Cool roof count
+• Estimated annual energy savings
+• Estimated annual cost savings
+• Estimated annual CO₂ reduction
+
+Persistence:
+• Per-job analytics stored in SQLite database
+• MySQL-compatible schema for future migration
+
+--------------------------------------------------
+SYSTEM ARCHITECTURE
+--------------------------------------------------
+
+Backend:
+• FastAPI-based REST API
+• Job-based processing model
+• Modular service-oriented design
+
+Frontend:
+• Streamlit-based UI
+• File upload, KPI visualization, raster overlays
+• No ML logic in frontend
+
+Database:
+• SQLite (file-based, lightweight)
+• One row per inference job
+• Stores KPIs and modeling assumptions
 
 --------------------------------------------------
 NON-FUNCTIONAL REQUIREMENTS
 --------------------------------------------------
-- GPU memory ≤ 6GB
-- Deterministic outputs
-- Offline capable
-- Modular backend services
-- Frontend contains ZERO ML logic
+• GPU memory usage ≤ 6 GB
+• CPU-only inference supported
+• Offline-capable local execution
+• Modular and testable codebase
+• Deterministic, reproducible results
+• Clean separation of ML, API, UI, and data layers
+
+--------------------------------------------------
+DISCLAIMERS
+--------------------------------------------------
+• Energy and cost estimates are indicative and planning-level
+• Results depend on modeling assumptions and scene context
+• Not intended for household billing or regulatory decisions
+
+--------------------------------------------------
+END OF DOCUMENT
+--------------------------------------------------

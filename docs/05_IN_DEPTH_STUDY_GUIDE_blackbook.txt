@@ -1,428 +1,429 @@
-
 ROOFLYTICS – COMPLETE TECHNICAL STUDY GUIDE
-(FINAL YEAR BLACK BOOK / 100 MARKS VERSION)
-==============================================================
+(FINAL YEAR BLACK BOOK / 100 MARKS VERSION – IMPLEMENTED)
+=================================================================
 
 This document explains EVERY technical decision in depth:
-- Why each component exists
-- Scientific reasoning
-- Mathematical foundations
-- Engineering trade-offs
-- Practical implementation details
+• Why each component exists
+• Scientific reasoning
+• Mathematical foundations
+• Engineering trade-offs
+• Practical implementation details
 
-Goal:
-A CS engineering student should be able to implement the entire system
-from scratch after studying this document.
+GOAL:
+A computer science engineering student should be able to implement the
+entire Rooflytics system from scratch after studying this document.
 
-======================================================================
+=================================================================
 TABLE OF CONTENTS
-======================================================================
+=================================================================
 
 1. Problem Definition
-2. Why Computer Vision + Segmentation
-3. Dataset (AIRS / Aerial imagery) characteristics
-4. Full System Architecture
+2. Why Computer Vision + Semantic Segmentation
+3. Dataset Characteristics (Aerial Imagery)
+4. Overall System Architecture
 5. Image Processing Fundamentals
-6. Tiling Strategy (memory constraints)
-7. Normalization Theory (why not /255)
-8. U-Net Theory (from scratch)
+6. Tiling Strategy (Memory Constraints)
+7. Normalization Theory (Why NOT x/255)
+8. U-Net Architecture (From Scratch)
 9. Transfer Learning & EfficientNet
-10. Loss functions & metrics
-11. Mixed precision & GPU optimization
-12. Post-processing morphology
-13. Reflectance (albedo) physics
-14. Luminance formula derivation
-15. Clustering theory (KMeans + scaling)
-16. Energy modeling physics (units & time term)
-17. Cost & carbon modeling
-18. GIS & geospatial processing
-19. Backend system design
-20. Deployment decisions
-21. Practical trade-offs
-22. Experimental evaluation plan
-23. Future extensions
-24. End-to-end pipeline summary
+10. Loss Functions & Metrics
+11. Mixed Precision & GPU Optimization
+12. Post-processing & Morphology
+13. Reflectance (Albedo) Physics
+14. Luminance Formula Derivation
+15. Clustering Theory (KMeans + Scaling)
+16. Energy Modeling (Physics & Units)
+17. Cost & Carbon Modeling
+18. Geospatial Processing & GIS Outputs
+19. Backend System Design
+20. Deployment Decisions
+21. Practical Engineering Trade-offs
+22. Experimental Evaluation Strategy
+23. Limitations & Assumptions
+24. End-to-End Pipeline Summary
 
-======================================================================
+=================================================================
 1. PROBLEM DEFINITION
-======================================================================
+=================================================================
 
-Cities suffer from Urban Heat Island (UHI) effects due to dark roofs.
-Dark materials absorb solar radiation → increase indoor temperature →
-increase AC usage → increase electricity consumption → increase carbon emissions.
+Urban areas suffer from the Urban Heat Island (UHI) effect caused by
+heat-absorbing materials such as dark roofs.
 
-Goal:
-Automatically detect roofs and estimate how much energy can be saved if
-cool/reflective roofs are used.
+Chain of impact:
+Dark roofs → higher solar absorption → increased indoor temperature →
+higher cooling demand → increased electricity consumption →
+higher carbon emissions.
 
-Input:
-RGB aerial GeoTIFF image
+GOAL:
+Automatically detect rooftops from aerial imagery and estimate the
+potential reduction in cooling energy if roofs are retrofitted with
+high-reflectance (cool roof) materials.
 
-Output:
-- roof mask
-- reflectance estimate
-- hot/medium/cool class
-- energy savings (kWh/year)
-- cost savings
-- carbon offset
-- GIS layers
+INPUT:
+• RGB aerial GeoTIFF imagery
 
-This is a segmentation + physics modeling + GIS problem.
+OUTPUT:
+• Roof segmentation mask
+• Reflectance (albedo proxy)
+• Hot vs cool roof classification
+• Estimated cooling energy savings (kWh/year)
+• Estimated cost savings
+• Estimated CO₂ reduction
+• GIS-compatible raster outputs
 
-======================================================================
+This is a combined:
+• Computer vision
+• Physics-informed modeling
+• Geospatial analytics problem
+
+=================================================================
 2. WHY SEMANTIC SEGMENTATION?
-======================================================================
+=================================================================
 
-Object detection gives bounding boxes.
-Bounding boxes cannot measure:
+Object detection produces bounding boxes, which are insufficient for:
+• Precise roof area measurement
+• Per-pixel reflectance estimation
+• Accurate energy modeling
+• GIS polygon generation
 
-- exact area
-- per-pixel reflectance
-- polygon export
+Semantic segmentation provides:
+• Pixel-level roof masks
+• Accurate area estimation
+• Better physical modeling
 
-Segmentation gives pixel-level masks:
-→ precise area measurement
-→ energy calculation accuracy
-→ GIS polygon generation
+Hence, a U-Net-based segmentation approach is used.
 
-Hence U-Net segmentation is chosen.
-
-======================================================================
+=================================================================
 3. DATASET CHARACTERISTICS (AERIAL IMAGERY)
-======================================================================
+=================================================================
 
 Challenges:
-- varying lighting
-- shadows
-- haze
-- seasonal changes
-- different roof colors/materials
-- very large images (10k × 10k)
+• Large image sizes (up to 10,000 × 10,000 pixels)
+• Variable lighting and shadows
+• Seasonal differences
+• Roof material and color diversity
+• Perspective distortions
 
 Implications:
-- need normalization
-- need tiling
-- need robust pretrained features
+• Requires tiling
+• Requires robust normalization
+• Benefits from pretrained feature extractors
 
-======================================================================
+=================================================================
 4. SYSTEM ARCHITECTURE
-======================================================================
+=================================================================
 
-Streamlit (UI)
-        ↓
-FastAPI (backend)
-        ↓
-ML + Geospatial pipeline
+High-level architecture:
 
-Reason:
+Streamlit Frontend (UI only)
+        ↓
+FastAPI Backend (API + orchestration)
+        ↓
+ML + Geospatial Processing Pipeline
+        ↓
+Raster Outputs + Analytics Database
+
 Separation of concerns:
-- UI should not block during ML
-- Backend handles heavy GPU tasks
-- Easier deployment and scaling
+• Frontend handles interaction and visualization
+• Backend handles ML, geospatial processing, and analytics
 
-======================================================================
+=================================================================
 5. TILING STRATEGY
-======================================================================
+=================================================================
 
 Problem:
-10k × 10k × 3 ≈ 300M pixels → too large for GPU memory.
+A 10k × 10k RGB image ≈ 300 million pixels → exceeds GPU memory limits.
 
 Solution:
-Split into 512×512 tiles.
+• Tile image into 512 × 512 patches
+• Run inference per tile
+• Stitch outputs back together
 
 Benefits:
-- constant VRAM
-- parallel batches
-- scalable
+• Constant VRAM usage
+• Scalable to arbitrarily large images
+• Hardware-agnostic
 
-Trade-off:
-Edge artifacts → solved by overlapping tiles + stitching.
-
-======================================================================
+=================================================================
 6. NORMALIZATION THEORY
-======================================================================
+=================================================================
 
-Why not x/255 only?
+Why x/255 scaling is insufficient:
 
-/255 only rescales range, does NOT remove lighting differences.
+x/255 only rescales pixel values but does not remove lighting bias.
+Different tiles may have vastly different brightness distributions.
 
-Example:
-bright tile mean=200 vs dark tile mean=80
+Solution:
+• Per-image standardization
+• OR ImageNet mean/std normalization
 
-Model mistakes brightness for material.
-
-Better:
-ImageNet normalization or per-image standardization.
-
-Math:
+Mathematical form:
 x_norm = (x − μ) / σ
 
 Benefits:
-- zero mean
-- stable gradients
-- matches EfficientNet pretrained distribution
+• Zero-centered data
+• Stable gradients
+• Compatibility with pretrained backbones
 
-This is CRITICAL.
+This step is CRITICAL for model performance.
 
-======================================================================
-7. U-NET THEORY (FROM SCRATCH)
-======================================================================
+=================================================================
+7. U-NET ARCHITECTURE (FROM SCRATCH)
+=================================================================
 
-Structure:
-Encoder → Decoder with skip connections
+U-Net structure:
+• Encoder (context extraction)
+• Decoder (spatial reconstruction)
+• Skip connections (feature preservation)
 
-Encoder:
-captures context
+Why U-Net:
+• Excellent for blob-like objects (roofs)
+• Preserves spatial detail
+• Works well with limited data
 
-Decoder:
-recovers spatial resolution
+Scratch U-Net is used ONLY for:
+• Debugging
+• Pipeline validation
+• Sanity checks
 
-Skip connections:
-prevent information loss
-
-Why good for roofs?
-Roofs are large blobs → spatial information is crucial.
-
-Vanilla U-Net:
-Used ONLY for debugging and sanity checks.
-
-======================================================================
+=================================================================
 8. TRANSFER LEARNING & EFFICIENTNET
-======================================================================
+=================================================================
 
 Training from scratch:
-- needs large data
-- slower
-- weaker generalization
+• Requires large datasets
+• Slower convergence
+• Poor generalization on small data
 
-EfficientNet:
-Pretrained on ImageNet
-Already knows edges/textures
+EfficientNet advantages:
+• Pretrained on ImageNet
+• Strong texture and edge representations
+• Efficient parameter usage (B0 variant)
 
-Benefits:
-- faster convergence
-- higher Dice
-- lower data requirement
-- lower VRAM (B0 is lightweight)
+Strategy:
+• Scratch model → correctness
+• EfficientNet-backed U-Net → production inference
 
-Hence:
-scratch → debugging
-efficientnet → production
-
-CLI flag:
---backbone scratch|efficientnet
-
-======================================================================
+=================================================================
 9. LOSS FUNCTIONS
-======================================================================
+=================================================================
 
-Binary Cross Entropy:
-pixel classification
+Binary Cross-Entropy (BCE):
+• Pixel-wise classification
 
 Dice Loss:
-overlap metric
+• Overlap-based metric
+• Handles class imbalance
 
-Combined:
+Final loss:
 Loss = BCE + Dice
 
-Reason:
-BCE handles probabilities
-Dice handles class imbalance
-
-======================================================================
+=================================================================
 10. METRICS
-======================================================================
+=================================================================
 
-Dice = 2|A∩B|/(|A|+|B|)
-IoU  = |A∩B|/|A∪B|
+Dice coefficient:
+Dice = 2|A ∩ B| / (|A| + |B|)
 
-Dice preferred for segmentation quality.
+IoU:
+IoU = |A ∩ B| / |A ∪ B|
 
-Target ≥ 0.88
+Dice is preferred for segmentation quality.
 
-======================================================================
+=================================================================
 11. MIXED PRECISION
-======================================================================
+=================================================================
 
-float16 halves memory
+Mixed precision uses float16:
+• Reduces VRAM usage
+• Speeds up training
 
-Benefits:
-- faster training
-- lower VRAM
+Implemented using torch.cuda.amp.
 
-Implemented via torch.cuda.amp
-
-======================================================================
+=================================================================
 12. POST-PROCESSING
-======================================================================
+=================================================================
 
-Morphological closing:
-fills small holes
+Operations:
+• Morphological closing
+• Small object removal
+• Connected component labeling
 
-Small object removal:
-removes noise
+Purpose:
+• Clean roof masks
+• Reduce noise
+• Improve GIS compatibility
 
-Reason:
-Cleaner polygons → better GIS export
-
-======================================================================
+=================================================================
 13. REFLECTANCE (ALBEDO) PHYSICS
-======================================================================
+=================================================================
 
-Reflectance = fraction of light reflected.
+Reflectance measures the fraction of incoming light reflected by a surface.
+Higher reflectance → cooler roofs.
 
-Higher reflectance → cooler roof
+Direct albedo measurement is unavailable, so RGB brightness is used
+as a proxy.
 
-We approximate using brightness.
-
-======================================================================
+=================================================================
 14. LUMINANCE FORMULA
-======================================================================
+=================================================================
 
-NOT mean(R,G,B)
+Incorrect approach:
+mean(R, G, B)
 
-Correct:
+Correct luminance formulation:
 Y = 0.2126R + 0.7152G + 0.0722B
 
-Green contributes most to perceived brightness.
+This matches human-perceived brightness and physical reflectance trends.
 
-Scientifically more accurate → better clustering.
-
-======================================================================
+=================================================================
 15. CLUSTERING THEORY
-======================================================================
+=================================================================
 
-We group roofs into hot/medium/cool.
+Goal:
+Group roofs into thermally similar classes (hot vs cool).
 
-KMeans uses Euclidean distance.
+Method:
+• Extract roof-level features
+• Standardize features using StandardScaler
+• Apply KMeans clustering
 
-Problem:
-Area >> reflectance scale
+Scaling is mandatory to prevent feature dominance.
 
-Solution:
-StandardScaler
-
-x' = (x−μ)/σ
-
-Ensures fair distance calculation.
-
-Mandatory step.
-
-======================================================================
+=================================================================
 16. ENERGY MODEL PHYSICS
-======================================================================
+=================================================================
 
-Energy = Power × Time
+Energy saved is estimated as:
 
-Correct formula:
+E_saved = A × Δα × G × η × T × U
 
-E_saved = A × Δα × G × η × T
+Where:
+• A = roof area (m²)
+• Δα = reflectance improvement
+• G = solar irradiance (kW/m²)
+• η = cooling efficiency
+• T = annual sunlight hours
+• U = usage factor (scene-level)
 
 Units:
-m² × unitless × kW/m² × unitless × hours = kWh
+m² × kW/m² × hours = kWh
 
-Without time term → incorrect units.
+=================================================================
+17. COST & CARBON MODELING
+=================================================================
 
-This correction is scientifically required.
+Cost savings:
+Cost_saved = E_saved × electricity_price
 
-======================================================================
-17. GIS PROCESSING
-======================================================================
+CO₂ reduction:
+CO₂_saved = E_saved × emission_factor
 
-Raster → polygon conversion
+These values represent potential planning-level estimates.
 
-Needed because:
-planners use GIS tools
+=================================================================
+18. GEOSPATIAL PROCESSING
+=================================================================
 
-Libraries:
-rasterio, geopandas, shapely
+Raster-based processing is used to:
+• Preserve spatial accuracy
+• Enable GIS compatibility
 
 Outputs:
-GeoJSON, Shapefile
+• GeoTIFF roof masks
+• GeoTIFF thermal clusters
 
-======================================================================
-18. BACKEND DESIGN
-======================================================================
+Vector export is a future extension.
 
-FastAPI chosen because:
-- async
-- lightweight
-- easy deployment
-- Python-native
+=================================================================
+19. BACKEND SYSTEM DESIGN
+=================================================================
 
-BackgroundTasks:
-sufficient for MVP
+FastAPI chosen for:
+• High performance
+• Async support
+• Easy deployment
 
-Celery avoided initially:
-reduces complexity
+Job-based processing:
+• Each request creates a job_id
+• Outputs stored per job
 
-======================================================================
-19. DEPLOYMENT CONSIDERATIONS
-======================================================================
+SQLite used for analytics persistence with MySQL-compatible schema.
+
+=================================================================
+20. DEPLOYMENT DECISIONS
+=================================================================
 
 Constraints:
-- free tier hosting
-- 4–6GB GPU
+• Free-tier hosting
+• Limited compute resources
 
-Hence:
-- tiled inference
-- lightweight EfficientNet
-- minimal dependencies
+Design choices:
+• CPU-only inference support
+• Tiled processing
+• Lightweight models
+• Minimal dependencies
 
-======================================================================
-20. PRACTICAL ENGINEERING DECISIONS
-======================================================================
+=================================================================
+21. PRACTICAL ENGINEERING TRADE-OFFS
+=================================================================
 
-Why scratch model first?
-→ debug data
+• Accuracy vs deployability
+• Physics realism vs data availability
+• Model complexity vs inference cost
+• Interpretability over black-box models
 
-Why EfficientNet later?
-→ better accuracy
+=================================================================
+22. EXPERIMENTAL EVALUATION STRATEGY
+=================================================================
 
-Why scaling before clustering?
-→ mathematical correctness
+Evaluation metrics:
+• Dice score
+• Visual inspection
+• Stability across tiles
 
-Why luminance?
-→ physics correctness
+Full-scale training is planned as future work.
 
-Why normalization?
-→ training stability
+=================================================================
+23. LIMITATIONS & ASSUMPTIONS
+=================================================================
 
-Every step has scientific or engineering reasoning.
+• Energy estimates are indicative, not measured
+• No building-type classification
+• Reflectance is a proxy
+• Scene-level usage assumptions applied
 
-======================================================================
-21. END-TO-END PIPELINE
-======================================================================
+=================================================================
+24. END-TO-END PIPELINE SUMMARY
+=================================================================
 
 GeoTIFF
- → tiles
- → normalize
- → segment
- → postprocess
- → reflectance
- → scale features
- → cluster
- → energy modeling
- → GIS export
+ → Tiling
+ → Normalization
+ → Segmentation
+ → Post-processing
+ → Reflectance estimation
+ → Feature scaling
+ → Clustering
+ → Energy modeling
+ → Raster export
+ → Analytics persistence
 
-======================================================================
+=================================================================
 FINAL NOTE
-======================================================================
+=================================================================
 
-This project integrates:
-- Deep Learning
-- Image Processing
-- Physics
-- Statistics
-- Geospatial systems
-- Backend engineering
+Rooflytics integrates:
+• Deep Learning
+• Image Processing
+• Physics
+• Statistics
+• Geospatial Systems
+• Backend Engineering
 
-It is NOT just a CNN project.
+It represents a complete, real-world AI system,
+not just a neural network.
 
-It demonstrates:
-✔ theory
-✔ math
-✔ engineering
-✔ deployment
-
-A complete real-world AI system.
+-------------------------------------------------
+END OF DOCUMENT
+-------------------------------------------------

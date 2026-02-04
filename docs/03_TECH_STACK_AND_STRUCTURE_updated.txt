@@ -1,175 +1,231 @@
+ROOFLYTICS – TECH STACK & PROJECT STRUCTURE (v1.0 – IMPLEMENTED)
+===============================================================
 
-TECH STACK & PROJECT STRUCTURE (UPDATED)
-======================================
+This document defines the finalized technology stack, architectural
+boundaries, and repository structure used in the Rooflytics project.
 
-This document defines all required libraries, architectural boundaries,
-and recommended repository layout for Rooflytics.
+--------------------------------------------------
+CORE ENGINEERING PRINCIPLES
+--------------------------------------------------
 
-==================================================
-CORE PRINCIPLES
-==================================================
+1. ALL machine learning and geospatial processing runs in the backend
+2. Frontend contains ZERO ML or geospatial logic
+3. Tiled inference for low VRAM and large GeoTIFFs
+4. Deterministic, reproducible outputs
+5. Two-model development strategy:
+   • Scratch U-Net → debugging & validation
+   • EfficientNet-backed U-Net → production inference
+6. Lightweight deployment prioritized over heavy infrastructure
 
-1. ALL ML runs in backend only
-2. Streamlit contains zero ML logic
-3. Tiled inference for low VRAM
-4. Deterministic outputs
-5. Two-model strategy:
-   - Vanilla U-Net → debugging
-   - EfficientNet → production
-6. Backbone selectable via:
-       --backbone scratch|efficientnet
+--------------------------------------------------
+BACKEND – MACHINE LEARNING STACK
+--------------------------------------------------
 
-==================================================
-BACKEND – MACHINE LEARNING
-==================================================
+Core ML
+• torch
+• torchvision
 
-PyTorch stack
-- torch
-- torchvision
+Segmentation Models
+• segmentation_models_pytorch
+• timm (required for EfficientNet encoders)
 
-Segmentation
-- segmentation_models_pytorch
-- timm  (REQUIRED for EfficientNet encoders)
+Data Processing & Utilities
+• numpy
+• pandas
+• scipy
+• scikit-learn
+  – StandardScaler
+  – KMeans
 
-Augmentation
-- albumentations
+Image Processing
+• opencv-python-headless
 
-ML utilities
-- scikit-learn (StandardScaler + KMeans)
-- numpy
-- pandas
-- scipy
-- opencv-python-headless
+--------------------------------------------------
+GEOSPATIAL STACK
+--------------------------------------------------
 
-==================================================
-GEOSPATIAL
-==================================================
+Core Geospatial Libraries
+• rasterio
+• pyproj
 
-- rasterio
-- geopandas
-- shapely
-- fiona
-- pyproj
+(GeoPandas / Shapely intentionally avoided in v1
+to reduce memory footprint and deployment complexity.)
 
 Used for:
-- GeoTIFF reading
-- CRS preservation
-- Raster → polygon conversion
-- GeoJSON/Shapefile export
+• GeoTIFF loading
+• CRS preservation
+• Raster-based spatial analysis
+• GIS-ready GeoTIFF export
 
-==================================================
-BACKEND – API
-==================================================
+--------------------------------------------------
+BACKEND – API & ORCHESTRATION
+--------------------------------------------------
 
-- FastAPI
-- Uvicorn
-- Pydantic
-- python-multipart
-- aiofiles
-- httpx
+API Framework
+• FastAPI
+• Uvicorn
 
-Jobs
-- FastAPI BackgroundTasks (preferred for MVP)
-- Celery optional later only if needed
+Request Handling
+• python-multipart
+• aiofiles
+• httpx
 
-==================================================
-FRONTEND (PHASE 1)
-==================================================
+Job Management
+• Job-based processing via FastAPI routes
+• Synchronous execution for MVP
+• BackgroundTasks optional (future)
 
-Streamlit UI only:
-- streamlit
-- plotly
-- folium
-- streamlit-folium
-- requests
+--------------------------------------------------
+BACKEND – ANALYTICS & DATABASE
+--------------------------------------------------
 
-NO ML here.
+Persistence
+• SQLite (runtime)
+• File-based, lightweight, zero-configuration
 
-==================================================
-IMPORTANT PROCESSING RULES (MANDATORY)
-==================================================
+Schema Design
+• MySQL-compatible SQL schema
+• One row per inference job
+• Stores:
+  – job_id
+  – roof counts
+  – energy savings
+  – cost savings
+  – CO₂ reduction
+  – modeling assumptions
+  – timestamps
+
+Rationale
+• Minimal resource usage
+• Easy deployment
+• Future migration path to MySQL/Postgres
+
+--------------------------------------------------
+FRONTEND (STREAMLIT)
+--------------------------------------------------
+
+Frontend Role
+• User interaction only
+• Visualization and KPI display
+• No ML or geospatial processing
+
+Libraries
+• streamlit
+• requests
+• plotly (optional charts)
+• pillow (image handling)
+
+Features
+• Upload GeoTIFF
+• Trigger backend inference
+• Display KPIs (energy, cost, CO₂)
+• Visualize hot/cool roof overlays
+• Download GeoTIFF outputs
+
+--------------------------------------------------
+MANDATORY PROCESSING RULES
+--------------------------------------------------
 
 NORMALIZATION
-- Do NOT use only x/255
-- Use ImageNet mean/std OR per-image standardization
+• DO NOT rely solely on x/255 scaling
+• Use:
+  – ImageNet mean/std (pretrained backbones)
+  – or per-image standardization
 
-REFLECTANCE
-- Use luminance formula:
+REFLECTANCE ESTIMATION
+• Use luminance-based formulation:
     Y = 0.2126R + 0.7152G + 0.0722B
+• Acts as proxy for roof albedo
 
 CLUSTERING
-- Always StandardScaler before KMeans
+• Always apply StandardScaler before K-Means
+• Prevents brightness or area dominance
 
 ENERGY MODEL
-    E_saved = A × Δα × G × η × T
+• Planning-level estimation only
+• Scene-level residential usage factor (default: 0.1)
+• Per-roof cap: 5,000 kWh/year
+• Prevents unrealistic household overestimation
 
-==================================================
-RECOMMENDED PROJECT STRUCTURE
-==================================================
+--------------------------------------------------
+FINAL PROJECT STRUCTURE
+--------------------------------------------------
 
-rooflytics/
+rooflytics-ai/
 │
 ├── backend/
 │   ├── app/
 │   │   ├── main.py
-│   │   ├── routes/
-│   │   ├── schemas/
-│   │   └── config.py
+│   │   └── routes/
+│   │       ├── health.py
+│   │       ├── upload.py
+│   │       ├── process.py
+│   │       └── results.py
 │   │
 │   ├── services/
 │   │   ├── data_loader.py
 │   │   ├── preprocessing.py
 │   │   ├── segmentation.py
+│   │   ├── postprocess.py
 │   │   ├── reflectance.py
 │   │   ├── clustering.py
-│   │   ├── energy_model.py
+│   │   ├── energy.py
 │   │   ├── export.py
-│   │   └── pipeline.py
+│   │   └── db.py
 │   │
 │   ├── models/
 │   │   ├── unet_scratch.py
-│   │   └── efficientnet_unet.py
+│   │   └── unet_efficientnet.py
 │   │
 │   └── utils/
 │
 ├── frontend-streamlit/
-│   ├── app.py
-│   └── api_client.py
+│   └── app.py
 │
-├── shared/
-│   └── constants.py
+├── training/
+│   ├── train.py
+│   └── train_efficientnet.py
 │
-└── requirements-*.txt
+├── testing/
+│   └── test_segmentation.py
+│
+├── db/
+│   ├── schema.sql
+│   └── rooflytics.db
+│
+├── results/
+│   └── <job_id>/
+│
+├── requirements-backend.txt
+├── requirements-frontend.txt
+└── README.md
 
-==================================================
-MODEL SELECTION PATTERN (REQUIRED)
-==================================================
+--------------------------------------------------
+MODEL SELECTION STRATEGY
+--------------------------------------------------
 
-CLI example:
+Development:
+• Scratch U-Net for correctness and debugging
 
-    python train.py --backbone scratch
-    python train.py --backbone efficientnet
+Production:
+• EfficientNet-B0 encoder
+• Faster convergence
+• Better generalization
+• Lower memory footprint
 
-Logic:
+Model choice is configuration-driven and does NOT
+affect downstream pipeline logic.
 
-if backbone == "scratch":
-    use vanilla U-Net
-else:
-    use EfficientNet-B0 pretrained
-
-==================================================
+--------------------------------------------------
 WHY THIS STACK
-==================================================
+--------------------------------------------------
 
-EfficientNet:
-- Better Dice
-- Faster convergence
-- Lower memory usage
-- Stronger generalization
+This stack was chosen to:
+• Handle very large GeoTIFFs efficiently
+• Run on limited hardware and free-tier cloud platforms
+• Maintain interpretability over black-box physics models
+• Support future scaling without premature complexity
 
-Vanilla U-Net:
-- Easier debugging
-- Full control
-- Good sanity checks
-
-Together → robust development workflow
+--------------------------------------------------
+END OF DOCUMENT
+--------------------------------------------------
