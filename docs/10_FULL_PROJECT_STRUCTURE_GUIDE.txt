@@ -1,240 +1,261 @@
+ROOFLYTICS – TRAINING THEORY NOTES
+(DEEP LEARNING FOUNDATIONS & MATHEMATICAL BASIS)
+================================================
 
-ROOFLYTICS – COMPLETE PROJECT STRUCTURE GUIDE
-============================================
+This document presents the mathematical and theoretical foundations
+underlying the Rooflytics training and inference pipeline.
 
-Purpose:
-This document describes EVERY folder and file in the repository and explains:
-- what it contains
-- why it exists
-- what logic should be implemented inside
+It focuses on:
+• Semantic segmentation theory
+• Loss functions and optimization
+• CNN and encoder–decoder architectures
+• Transfer learning
+• Numerical stability
+• Clustering mathematics
+• Energy model dimensional correctness
 
-You can paste this entire file into an LLM and say:
-"Generate code following this exact structure and responsibilities."
+================================================
+1. BINARY SEGMENTATION FORMULATION
+================================================
 
-=====================================================================
-ROOT DIRECTORY
-=====================================================================
+Let the input RGB image be:
+X ∈ ℝ^(H × W × 3)
 
-rooflytics/
-│
-├── backend/                → FastAPI server + ALL ML logic
-├── training/               → training scripts only
-├── frontend-streamlit/     → UI only (NO ML)
-├── shared/                 → shared constants/types
-├── data/                   → local data cache
-├── experiments/            → logs + checkpoints
-├── notebooks/              → research notebooks
-├── docs/                   → documentation/blackbook
-│
-├── requirements-backend.txt
-├── requirements-frontend.txt
-├── README.md
-└── .env
+Ground truth roof mask:
+Y ∈ {0,1}^(H × W)
 
+The segmentation model f_θ maps:
+f_θ(X) → Ŷ ∈ [0,1]^(H × W)
 
-=====================================================================
-BACKEND (CORE LOGIC)
-=====================================================================
+Each pixel output ŷ_ij represents the probability that pixel (i,j)
+belongs to the roof class.
 
-backend/
-│
-├── app/
-│   ├── main.py
-│   │   Entry point for FastAPI server
-│   │   Starts app and includes routers
-│   │
-│   ├── config.py
-│   │   Global configs:
-│   │   - paths
-│   │   - tile size
-│   │   - model defaults
-│   │
-│   ├── schemas.py
-│   │   Pydantic request/response models
-│   │
-│   ├── routes/
-│   │   ├── health.py
-│   │   │   /health endpoint
-│   │   │
-│   │   ├── upload.py
-│   │   │   Upload GeoTIFF endpoint
-│   │   │
-│   │   ├── process.py
-│   │   │   Trigger pipeline
-│   │   │
-│   │   ├── status.py
-│   │   │   Job progress endpoint
-│   │   │
-│   │   └── results.py
-│   │       Download GeoJSON/CSV
-│   │
-│   └── services/
-│       ├── pipeline.py
-│       │   full_pipeline()
-│       │   calls all steps sequentially
-│       │
-│       ├── tiling.py
-│       │   split large images into 512x512 tiles
-│       │
-│       ├── preprocessing.py
-│       │   normalization (ImageNet or per-image)
-│       │
-│       ├── segmentation.py
-│       │   model inference logic
-│       │
-│       ├── reflectance.py
-│       │   luminance formula:
-│       │   0.2126R + 0.7152G + 0.0722B
-│       │
-│       ├── clustering.py
-│       │   StandardScaler + KMeans
-│       │
-│       ├── energy_model.py
-│       │   physics equations:
-│       │   E = A × Δα × G × η × T
-│       │
-│       ├── postprocess.py
-│       │   morphology cleanup
-│       │
-│       └── export.py
-│           raster → polygons → GeoJSON/Shapefile
-│
-├── models/
-│   ├── unet_scratch.py
-│   │   vanilla U-Net for debugging
-│   │
-│   ├── efficientnet_unet.py
-│   │   smp.Unet(encoder="efficientnet-b0")
-│   │
-│   └── model_factory.py
-│       chooses backbone via:
-│       --backbone scratch|efficientnet
-│
-└── utils/
-    ├── metrics.py
-    │   Dice, IoU
-    │
-    ├── io.py
-    │   file helpers
-    │
-    └── logging.py
-        logging config
+This formulation treats segmentation as pixel-wise Bernoulli
+classification.
 
+================================================
+2. BINARY CROSS-ENTROPY (BCE) LOSS
+================================================
 
-=====================================================================
-TRAINING
-=====================================================================
+Binary Cross-Entropy loss is defined as:
 
-training/
-│
-├── train.py
-│   main training script
-│   supports --backbone flag
-│
-├── validate.py
-│   evaluation script
-│
-├── infer.py
-│   offline inference
-│
-├── datasets.py
-│   tile loader + normalization
-│
-├── augmentations.py
-│   Albumentations transforms
-│
-├── losses.py
-│   BCE + Dice loss
-│
-├── engine.py
-│   training loop
-│
-└── configs/
-    ├── scratch.yaml
-    └── efficientnet.yaml
+L_BCE = - Σ [ y log(p) + (1 - y) log(1 - p) ]
 
+where:
+• y ∈ {0,1} is the ground truth label
+• p ∈ (0,1) is the predicted probability
 
-=====================================================================
-FRONTEND (STRICTLY UI)
-=====================================================================
+Gradient with respect to p:
 
-frontend-streamlit/
-│
-├── app.py
-│   Streamlit dashboard
-│
-├── api_client.py
-│   HTTP calls to backend
-│
-└── components/
-    ├── uploader.py
-    ├── maps.py
-    ├── charts.py
-    └── results.py
+∂L/∂p = (p - y) / [p(1 - p)]
 
-Rule:
-NO torch or ML here.
+BCE provides:
+• probabilistic interpretation
+• stable gradients for pixel-wise classification
 
+However, BCE alone does not handle class imbalance well.
 
-=====================================================================
-DATA
-=====================================================================
+================================================
+3. DICE COEFFICIENT
+================================================
 
-├── data/
-│   ├── train/
-│   │   ├── image/
-│   │   └── label/
-│   │       ├── *.tif
-│   ├── validate/
-│   │   ├── image/
-│   │   └── label/
-│   └── test/
-│       ├── image/
-│       └── label/
+The Dice similarity coefficient measures overlap:
 
-Used for caching only.
+Dice = 2TP / (2TP + FP + FN)
 
+For soft probabilistic outputs, the Soft Dice loss is used:
 
-=====================================================================
-EXPERIMENTS
-=====================================================================
+L_Dice = 1 - (2 Σ (p · y) + ε) / (Σ p + Σ y + ε)
 
-experiments/
-├── logs/
-├── checkpoints/
-├── metrics.csv
-├── plots/
-└── ablations/
+where ε is a small constant for numerical stability.
 
-Stores all results.
+Dice loss:
+• directly optimizes overlap
+• is robust to foreground–background imbalance
+• complements BCE
 
+================================================
+4. COMBINED LOSS FUNCTION
+================================================
 
-=====================================================================
-NOTEBOOKS
-=====================================================================
+Final loss used for training:
 
-notebooks/
-EDA + Colab experiments only
+L_total = L_BCE + L_Dice
 
+Rationale:
+• BCE enforces pixel-wise accuracy
+• Dice enforces region-level overlap
 
-=====================================================================
-DOCS
-=====================================================================
+The combination stabilizes training and improves segmentation quality
+on imbalanced roof datasets.
 
-docs/
-All study guides, PRD, blackbook files
+================================================
+5. BACKPROPAGATION
+================================================
 
+Training minimizes the loss via gradient descent.
 
-=====================================================================
-SUMMARY RULES
-=====================================================================
+Using the chain rule:
 
-1. Backend = ALL ML logic
-2. Frontend = UI only
-3. Training separate from API
-4. EfficientNet for production
-5. Scratch for debugging
-6. Always normalize properly
-7. StandardScaler before clustering
-8. Use luminance reflectance
-9. Use energy time term
+∂L/∂θ = ∂L/∂ŷ · ∂ŷ/∂θ
+
+Gradients are propagated layer-by-layer through:
+• convolutional layers
+• activation functions
+• batch normalization
+• skip connections
+
+PyTorch automatically computes these gradients via autograd.
+
+================================================
+6. CONVOLUTION OPERATION
+================================================
+
+For a 2D convolution:
+
+Output(i,j) = Σ_u Σ_v [ K(u,v) · X(i+u, j+v) ]
+
+Where:
+• K is the learnable kernel
+• X is the input feature map
+
+Convolutions enable:
+• local receptive fields
+• weight sharing
+• translation invariance
+
+These properties make CNNs suitable for spatial data such as imagery.
+
+================================================
+7. ENCODER–DECODER THEORY
+================================================
+
+Encoder:
+• Gradually reduces spatial resolution
+• Extracts high-level semantic features
+
+Decoder:
+• Upsamples feature maps
+• Restores spatial resolution
+
+Skip connections:
+
+F_out = concat(F_encoder, F_decoder)
+
+Benefits:
+• Preserve fine spatial details
+• Improve gradient flow
+• Enable precise boundary localization
+
+This structure is central to the U-Net architecture.
+
+================================================
+8. TRANSFER LEARNING
+================================================
+
+Model parameters are initialized as:
+
+θ = θ_pretrained + Δθ
+
+Where θ_pretrained comes from ImageNet-trained networks.
+
+Benefits:
+• Faster convergence
+• Better generalization on small datasets
+• Reduced risk of vanishing gradients
+
+In Rooflytics:
+• Scratch U-Net → correctness validation
+• EfficientNet-backed U-Net → production inference
+
+================================================
+9. MIXED PRECISION TRAINING
+================================================
+
+Mixed precision uses float16 instead of float32 for selected operations.
+
+Memory usage:
+M_new ≈ M_old / 2
+
+Advantages:
+• Reduced VRAM usage
+• Faster computation on modern GPUs
+• Larger batch sizes possible
+
+Implemented using:
+torch.cuda.amp.autocast
+torch.cuda.amp.GradScaler
+
+================================================
+10. EVALUATION METRICS
+================================================
+
+Intersection over Union (IoU):
+
+IoU = |A ∩ B| / |A ∪ B|
+
+Dice coefficient relation:
+
+Dice = 2IoU / (1 + IoU)
+
+Dice is preferred for segmentation evaluation due to its sensitivity
+to overlap quality.
+
+================================================
+11. CLUSTERING MATHEMATICS (K-MEANS)
+================================================
+
+K-Means minimizes the objective function:
+
+J = Σ_i ||x_i - μ_k||²
+
+Where:
+• x_i is a data point
+• μ_k is the centroid of cluster k
+
+Before clustering, features are standardized:
+
+x' = (x - μ) / σ
+
+Standardization is mandatory to:
+• prevent scale dominance
+• ensure fair clustering based on reflectance and area
+
+================================================
+12. ENERGY MODEL – DIMENSIONAL CONSISTENCY
+================================================
+
+Cooling-energy savings are estimated as:
+
+E_saved = A × Δα × G × η × T × U
+
+Where:
+• A = roof area (m²)
+• Δα = reflectance improvement (dimensionless)
+• G = solar irradiance (kW/m²)
+• η = cooling efficiency
+• T = annual sunlight hours (hours)
+• U = usage factor (dimensionless)
+
+Unit check:
+
+m² × kW/m² × hours = kWh
+
+This confirms dimensional correctness of the energy model.
+
+================================================
+FINAL NOTE
+================================================
+
+These theoretical foundations ensure that:
+• the ML model is mathematically sound
+• optimization is stable
+• clustering is meaningful
+• energy estimates are physically consistent
+
+Rooflytics integrates deep learning theory with
+physics-aware modeling and practical engineering constraints.
+
+------------------------------------------------
+END OF DOCUMENT
+------------------------------------------------

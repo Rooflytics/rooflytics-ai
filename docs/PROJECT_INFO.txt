@@ -1,0 +1,215 @@
+PROJECT TITLE
+Rooflytics: Urban Roof Intelligence for Energy & Carbon Optimization
+
+---
+
+Overview
+Rooflytics is an end-to-end geospatial AI system that analyzes aerial imagery to detect building roofs, classify them as thermally hot or cool, and estimate potential energy, cost, and CO₂ savings from cool-roof retrofitting.
+The project combines computer vision, geospatial processing, energy modeling, APIs, databases, and interactive visualization into a deployable system.
+
+---
+
+Problem Statement
+Urban areas experience increased heat due to dark roofing materials, leading to:
+• Higher indoor temperatures
+• Increased air-conditioning usage
+• Higher electricity costs
+• Increased carbon emissions
+
+City-scale identification of inefficient roofs using manual surveys is slow, expensive, and not scalable.
+Rooflytics addresses this by using aerial imagery and AI-driven analysis.
+
+---
+
+Key Objectives
+• Automatically detect rooftops from high-resolution aerial imagery
+• Classify roofs as thermally hot or cool using reflectance analysis
+• Estimate potential cooling energy savings
+• Quantify cost savings and CO₂ emission reductions
+• Provide interpretable, visual, and deployable outputs
+
+---
+
+Data & Inputs
+• High-resolution RGB GeoTIFF aerial imagery (AIRS dataset)
+• Binary roof segmentation masks (ground truth for training)
+• Region-specific energy and electricity parameters (New Zealand)
+
+Input size example:
+• Single tile: 10,000 × 10,000 pixels (≈100 million pixels)
+
+---
+
+System Architecture
+The system is organized into modular layers:
+• Data loading & tiling (GeoTIFF handling)
+• Deep learning segmentation (U-Net)
+• Post-processing & mask refinement
+• Reflectance & thermal analysis
+• Energy and emissions modeling
+• API backend (FastAPI)
+• Frontend visualization (Streamlit)
+• Lightweight analytics database (SQLite)
+
+---
+
+Roof Segmentation Model
+• Model: U-Net with EfficientNet backbone
+• Training framework: PyTorch
+• Input: RGB aerial tiles (512×512)
+• Output: Binary roof mask
+• Optimized for limited hardware and free-tier environments
+• Current deployment uses a lightweight model trained on a small subset for fast iteration
+
+---
+
+Post-Processing Pipeline
+After segmentation:
+• Small artifacts are removed
+• Roof masks are cleaned using morphological operations
+• Connected roof components are extracted
+This ensures clean, GIS-ready roof masks suitable for analysis and visualization.
+
+---
+
+Reflectance & Thermal Classification
+• Reflectance is computed from RGB values as a proxy for roof albedo
+• Roofs are aggregated at building level
+• K-Means clustering is applied to classify roofs into:
+  – Hot roofs (low reflectance)
+  – Cool roofs (high reflectance)
+This approach is interpretable and avoids black-box thermal estimation.
+
+---
+
+Energy Modeling Approach
+The energy model estimates potential cooling-energy reduction due to reflective roof retrofitting.
+Key characteristics:
+• Planning-level, upper-bound estimates
+• Conservative assumptions for residential usage
+• No building-level consumption claims
+• Designed for comparative and prioritization analysis
+
+---
+
+Energy Model Assumptions
+• Scene-level residential usage factor (0.1)
+• Maximum cooling-energy savings capped at 5,000 kWh per roof per year
+• Prevents overestimation for small households
+• Aligns with real-world residential electricity usage patterns
+• Region-specific electricity price and emission factor
+
+---
+
+Key Outputs
+For each inference job:
+• Total number of detected roofs
+• Number of hot roofs
+• Number of cool roofs
+• Estimated annual energy savings (kWh)
+• Estimated annual cost savings (NZD)
+• Estimated annual CO₂ reduction (kg)
+• GeoTIFF outputs for visualization
+
+---
+
+Visual Outputs
+Generated GeoTIFF layers:
+• Raw roof prediction mask
+• Cleaned roof mask
+• Thermal cluster map:
+  – Red = hot roofs
+  – Blue = cool roofs
+These are visualized directly in the frontend as overlays on aerial imagery.
+
+---
+
+Backend API
+• Built using FastAPI
+• Job-based processing architecture
+• Key endpoints:
+  – /upload: upload GeoTIFF and create job
+  – /process/{job_id}: run full inference pipeline
+  – /results/{job_id}: list and download outputs
+• Designed for modularity and future scaling
+
+---
+
+Frontend Application
+• Built using Streamlit
+• Allows users to:
+  – Upload aerial imagery
+  – Run roof analysis
+  – View energy, cost, and CO₂ KPIs
+  – Visually inspect hot and cool roof overlays
+  – Download GeoTIFF results
+• Designed for demos, decision-makers, and non-technical users
+
+---
+
+Database & Analytics Layer
+• SQLite used for lightweight persistence
+• MySQL-compatible schema
+• Stores one row per inference job:
+  – Roof counts
+  – Energy savings
+  – Cost savings
+  – CO₂ reduction
+  – Modeling assumptions
+• Enables historical analysis and future dashboarding
+• Minimal runtime overhead
+
+---
+
+Technology Stack
+• Python
+• PyTorch (deep learning)
+• Rasterio & OpenCV (geospatial processing)
+• FastAPI (backend)
+• Streamlit (frontend)
+• SQLite (analytics persistence)
+• NumPy, Scikit-learn, Matplotlib
+
+---
+
+Deployment Strategy
+• CPU-only deployment for inference
+• Lightweight model for fast response
+• File-based outputs and database persistence
+• Architecture supports easy v2 upgrades with improved models
+• Designed for cloud deployment with minimal resources
+
+---
+
+Key Engineering Decisions
+• Separate ML inference from analytics persistence
+• Use interpretable heuristics over opaque physics models
+• Avoid overclaiming household-level energy savings
+• Favor deployability and robustness over complexity
+• Design for scalability without premature optimization
+
+---
+
+Limitations
+• Current model trained on a small subset for demonstration
+• No building-type or zoning data integration
+• Reflectance used as proxy for thermal behavior
+• Estimates represent potential savings, not measured consumption
+
+---
+
+Future Improvements (v2)
+• Train on full dataset with validation and test splits
+• Building-level aggregation (merge roof components)
+• Integration with zoning and census data
+• City-scale batch processing
+• Advanced dashboards and map-based UI
+• Migration to production databases if needed
+
+---
+
+Conclusion
+Rooflytics demonstrates how geospatial AI, computer vision, and data engineering can be combined to create actionable urban sustainability insights.
+The system is interpretable, deployable, and extensible, making it suitable for research, planning, and real-world decision support.
+
+---
